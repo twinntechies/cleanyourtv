@@ -40,9 +40,10 @@ Built on <a href="https://github.com/Gathin23/cleanyourtv">CleanYourTV</a>: no r
 
 - **No ads, no clutter.** Sponsored rows, autoplaying trailers and Xiaomi's ad channels are switched off.
 - **A home that feels like Apple TV.** A greeting, a glass clock card, round glass buttons and a centred dock of six apps.
-- **A Control Centre** like Google TV's own: Wi-Fi, Bluetooth, audio output, picture, accessibility and the screensaver, one press away.
+- **A Control Centre** like Google TV's own: Wi-Fi, Bluetooth, audio output, picture, accessibility, the screensaver, USB and all settings, one press away.
 - **A macOS-style Wi-Fi menu** that switches Wi-Fi and joins networks without leaving Home.
 - **Bedtime and a lock screen:** a sleep timer on the moon button, and a lock that only **OK** opens.
+- **Never a black screen:** if the wallpaper isn't ready after power-on, the background glows in the focused app's colour until it is.
 - **Light on a 1 GB TV:** no internet permission, no background services, no analytics.
 - **Safe:** apps are disabled, never deleted, and one command brings everything back.
 
@@ -53,7 +54,7 @@ Built on <a href="https://github.com/Gathin23/cleanyourtv">CleanYourTV</a>: no r
 | Before: Google TV | After |
 |---|---|
 | ![Google TV's stock home, full of sponsored banners and recommendations](docs/readme/before.jpg) | ![The new home screen](docs/readme/home.jpg) |
-| Sponsored banners, autoplaying trailers, rows of recommendations and Xiaomi's own ad channels. | One greeting, the time, a row of round buttons and the six apps we actually watch. |
+| Sponsored banners, autoplaying trailers, rows of recommendations and Xiaomi's own ad channels. | One greeting, the time, seven round buttons and the six apps we actually watch. |
 
 ---
 
@@ -70,12 +71,10 @@ Built on <a href="https://github.com/Gathin23/cleanyourtv">CleanYourTV</a>: no r
 | Padlock | Locks the screen: a large centred clock over the wallpaper until **OK** is pressed. |
 | Inputs | HDMI and other sources. |
 | Gemini | Opens Google's assistant. |
-| USB | Opens the TV's file browser for a USB drive. |
 | Moon | Sleep timer and bedtime. |
 | Wi-Fi | The macOS-style [Wi-Fi menu](#the-wi-fi-menu). |
 | App library | Every app, as square cards. |
-| Toggles | The [Control Centre](#control-centre). |
-| Settings | The TV's settings. The remote's own Settings button works too. |
+| Toggles | The [Control Centre](#control-centre), in place of a Settings button. Hold **OK** on it for [more](#hold-ok-for-more). The remote's own Settings button still opens the TV's settings. |
 
 ### Dock
 YouTube, Netflix, JioHotstar, Prime Video, ZEE5 and aha, on square glass tiles in a frosted bar, centred.
@@ -85,14 +84,17 @@ YouTube, Netflix, JioHotstar, Prime Video, ZEE5 and aha, on square glass tiles i
 - **Hold OK** on a tile: Move, Remove or App info.
 - **Home at every power-on**, instead of the last app.
 - **Idle clock** after 10 minutes on Home. With `idle_lock`, the screensaver is the lock screen, its clock held in the centre.
+- **A clean start-up**: the dock rises into place with the highlight already on the first app.
+- **Wallpaper fallback**: right after power-on the wallpaper can take a moment to become readable. Until then the
+  background glows in the focused app's colour, and Home swaps the photo in by itself as soon as it can.
 
 ---
 
 ## Control Centre
 
-<img src="docs/readme/control.jpg" alt="The Control Centre: a dark glass panel of rounded tiles for Wi-Fi, Bluetooth, Audio output, Picture, Accessibility, Screensaver and All settings" width="860">
+<img src="docs/readme/control.jpg" alt="The Control Centre: a dark glass panel of rounded tiles for Wi-Fi, Bluetooth, Audio output, Picture, Accessibility, Screensaver, USB and All settings" width="860">
 
-The toggles button opens a panel of rounded tiles, after the one on Google TV. The focused tile turns white, and
+The toggles button at the end of the top bar opens a panel of rounded tiles, after the one on Google TV. The focused tile turns white, and
 a tile's badge turns blue while that thing is on.
 
 | Tile | Shows | Opens |
@@ -103,9 +105,17 @@ a tile's badge turns blue while that thing is on.
 | Picture | | Picture settings |
 | Accessibility | | Accessibility settings |
 | Screensaver | Start now | The screensaver, straight away |
+| USB | The drive's name, or No drive | The TV's file browser |
 | All settings | | The TV's settings |
 
 Back closes the panel. It is the `control_center` switch, on in this theme and off by default.
+
+### Hold OK for more
+
+<img src="docs/readme/hold.jpg" alt="Holding OK on the toggles button: a menu with Launcher settings, Module cards, Edit dock, Reorder apps and Restart" width="860">
+
+Holding **OK** on the toggles button opens the launcher's own menu: Launcher settings, Module cards, Edit dock,
+Reorder apps and Restart.
 
 ---
 
@@ -253,13 +263,14 @@ All are in `launcher/app/src/main/res/values/config.xml` and can also be set in 
 | `analog_clock` | A glass analog clock instead of the digital one |
 | `square_tiles` | Square glass dock tiles with each app's logo |
 | `assistant_button` | A Gemini button in the top bar |
-| `usb_button` | A USB button that opens the given file browser app |
+| `usb_button` | A USB button that opens the given file browser app; a USB tile in the Control Centre when that is on |
 | `sleep_timer_button` | A moon button with the sleep timer dropdown |
 | `wifi_dropdown` | The macOS-style Wi-Fi menu |
-| `control_center` | The toggles button and its Control Centre panel |
+| `control_center` | The Settings button becomes the toggles button and its Control Centre panel |
 | `library_square_cards` | Square App library cards with the name over the art |
 | `lock_button` | A padlock button that opens the lock screen |
 | `idle_lock` | The screensaver locks the screen until OK is pressed, with the clock held in the centre |
+| `wallpaper_fallback_glow` | The app-colour glow stands in while the wallpaper can't be shown, and Home retries it |
 
 ## FAQ
 

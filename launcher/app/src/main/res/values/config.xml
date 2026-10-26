@@ -299,10 +299,15 @@
          Bluetooth. A launcher cannot join a network itself, so a network row opens Wi-Fi settings. Ignored while a
          vpn_app takes the pill. Can also be set with "wifi_dropdown" in a theme. -->
     <bool name="wifi_dropdown">false</bool>
-    <!-- A round toggles button before Settings that opens a Google TV style panel of tiles: Wi-Fi (its dropdown),
-         Bluetooth (with the Bluetooth Connect add-on), Audio output, Picture, Accessibility, Screensaver and
-         All settings. Can also be set with "control_center" in a theme. -->
+    <!-- The Settings pill becomes a round toggles button that opens a Google TV style panel of tiles: Wi-Fi (its
+         dropdown), Bluetooth (with the Bluetooth Connect add-on), Audio output, Picture, Accessibility, Screensaver,
+         usb_button's app as a USB tile instead of a top-bar button, and All settings. Holding OK on it still opens
+         the Settings menu. Ignored with top_menu. Can also be set with "control_center" in a theme. -->
     <bool name="control_center">false</bool>
+    <!-- When the wallpaper cannot be shown (storage not ready yet after power-on, or a picture that fails to load),
+         the glow in the focused app's colour fills in for it even with ambient_glow off, and Home keeps trying the
+         wallpaper for a couple of minutes. Can also be set with "wallpaper_fallback_glow" in a theme. -->
+    <bool name="wallpaper_fallback_glow">false</bool>
     <!-- Every tile square, the app's icon on the top bar's frosted glass instead of its banner, and the grid narrowed
          so the dock is only as wide as its tiles and sits centred at the bottom, like a desktop dock. Ignored with
          single_row. Can also be set with "square_tiles" in a theme. -->

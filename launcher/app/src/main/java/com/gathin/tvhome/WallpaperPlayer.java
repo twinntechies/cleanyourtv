@@ -128,6 +128,13 @@ final class WallpaperPlayer {
         }
     }
 
+    /** Whether a picture made it onto the screen; one dropped for memory while Home was hidden still counts. */
+    boolean showing() {
+        return current != null || released;
+    }
+
+    private boolean released;
+
     void start() {
         active = true;
         update();
@@ -144,6 +151,7 @@ final class WallpaperPlayer {
         // The renderer may still have a queued frame that references this hardware bitmap. Drop our references and
         // let Android reclaim its native buffer after rendering releases it instead of recycling it mid-frame.
         current = null;
+        released = true;
         displayed = "";
         root.setBackgroundColor(backgroundColor);
     }
@@ -263,6 +271,7 @@ final class WallpaperPlayer {
     private void show(Bitmap bitmap) {
         Bitmap old = current;
         current = bitmap;
+        released = false;
         // The wallpaper covers the whole root; avoid drawing the fallback colour under it.
         root.setBackground(null);
         image.setImageBitmap(bitmap);

@@ -85,6 +85,8 @@
     <string name="screensaver">Screensaver</string>
     <string name="start_now">Start now</string>
     <string name="all_settings">All settings</string>
+    <string name="usb">USB</string>
+    <string name="no_usb_drive">No drive</string>
     <string name="on">On</string>
     <string name="off">Off</string>
     <string name="enable">Enable</string>

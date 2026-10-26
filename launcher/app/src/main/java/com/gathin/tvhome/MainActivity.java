@@ -223,6 +223,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private float glassScrollShiftX;
     private int glassCardW;   // width of the tile the glass was last fitted to
     private boolean glassShown;
+    /** The grid has been laid out with the dock's final top padding. */
+    private boolean gridSettled;
     private final Rect tileRect = new Rect();
     private final Rect revealRect = new Rect();
     // Static so they survive the activity being destroyed while another app is open (low-memory TVs,
@@ -307,6 +309,32 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private RecyclerView.OnScrollListener pendingFocusScroll;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+
+    /** wallpaper_fallback_glow: Home opened without its wallpaper, so the app-colour glow stands in. */
+    private boolean wallpaperFallbackGlow;
+    private static final long WALLPAPER_RETRY_MS = 4000;
+    /** Tries since Home last had its wallpaper; a process-wide cap, so a picture that never loads stops the rebuilds. */
+    private static int wallpaperRetries;
+    /**
+     * Rebuilds Home once the wallpaper files can be read: right after power-on Home can start before shared storage
+     * is up, or while the TV is too busy to decode the picture.
+     */
+    private final Runnable wallpaperRetry = new Runnable() {
+        @Override
+        public void run() {
+            if (isFinishing() || wallpaperPlayer.showing() || wallpaperRetries >= 30) return;
+            wallpaperRetries++;
+            if (wallpaperFilesReady()) recreate();
+            else handler.postDelayed(this, WALLPAPER_RETRY_MS);
+        }
+    };
+
+    private boolean wallpaperFilesReady() {
+        File dir = Config.dir(this);
+        if (dir == null) return false;
+        File single = new File(dir, Config.WALLPAPER_NAME);
+        return single.isFile() && single.length() > 0 || !WallpaperRotation.images(new File(dir, "wallpapers")).isEmpty();
+    }
     /** Refreshes the network pill when the connection changes: at boot Wi-Fi often connects after Home is shown. */
     private final ConnectivityManager.NetworkCallback networkCallback = new ConnectivityManager.NetworkCallback() {
         @Override
@@ -449,7 +477,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // The glow is one bitmap, so its alpha can be applied while drawing it. Otherwise every frame of
         // a fade renders it into a full-screen offscreen buffer first.
         ambient.forceHasOverlappingRendering(false);
-        ambientGlow = cfg.ambientGlow;
+        wallpaperFallbackGlow = cfg.wallpaperFallbackGlow;
+        ambientGlow = cfg.ambientGlow || wallpaperFallbackGlow && !wallpaperPlayer.showing();
         appGlow = cfg.appGlow;
         if (!ambientGlow) ambient.setVisibility(View.GONE);
         heroName = findViewById(R.id.heroName);
@@ -529,6 +558,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         hiddenApps = new HashSet<>(cfg.hiddenApps);
 
         grid = findViewById(R.id.grid);
+        // Until the dock has its final padding: no dock band drawn under the header, and no top button taking the
+        // first focus (it lit up white before the dock tile took over).
+        grid.setAlpha(0f);
+        ((ViewGroup) findViewById(R.id.topButtons)).setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         rtlAppGrid = getResources().getBoolean(R.bool.rtl_app_grid);
         // Mirror only the app grid; the header and other locales keep their own layouts.
         // single_row: one span laid out sideways, so the same adapter, glass and dock band serve a scrolling row.
@@ -656,8 +689,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // A single row never shows the names under its tiles (the title above the row names the app), so the
             // 7dp gap and 22dp label item_app.xml keeps for them would only lift the row: sit it that much lower.
             if (singleRow && !cfg.alwaysShowNames) want += (int) (29 * density);
-            if (grid.getPaddingTop() != want) {
+            if (grid.getPaddingTop() == want) {
+                gridSettled = true;
+                if (grid.getAlpha() == 0f) {
+                    grid.setAlpha(1f);
+                    ((ViewGroup) findViewById(R.id.topButtons)).setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+                }
+            } else {
+                gridSettled = false;
                 grid.setPadding(grid.getPaddingLeft(), want, grid.getPaddingRight(), grid.getPaddingBottom());
+                if (!singleRow) grid.post(grid::requestLayout);
+                // The first layout put the dock in the wrong place: play the tiles' entrance where they stay.
+                if (!glassShown && grid.getLayoutAnimation() != null) grid.scheduleLayoutAnimation();
                 // A vertical grid parks the dock on the new padding line by scrolling (onTileFocused); a sideways
                 // row cannot scroll vertically, and the layout request made from inside this layout pass is
                 // dropped, so lay the row out again on the next frame. The glass and the title were placed for the
@@ -770,10 +813,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnLibraryTop.setVisibility(cfg.libraryButton && cfg.appLibrary ? View.VISIBLE : View.GONE);
         addTopBarApps(cfg.topBarApps, cfg.launchActions);
         if (cfg.assistantButton) addAssistantButton();
-        if (!cfg.usbButton.isEmpty()) addUsbButton(cfg.usbButton);
+        if (cfg.controlCenter && !cfg.topMenu) usbPackage = cfg.usbButton;
+        else if (!cfg.usbButton.isEmpty()) addUsbButton(cfg.usbButton);
         if (cfg.sleepTimerButton) addSleepTimerButton();
         if (cfg.lockButton) addLockButton();
-        if (cfg.controlCenter) addControlCenterButton();
         librarySquareCards = cfg.librarySquareCards;
         appBanners = cfg.appBanners;
         iconOnlyButtons = cfg.iconOnlyButtons;
@@ -815,6 +858,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             showSettingsMenu();
             return true;
         });
+        if (cfg.controlCenter && !cfg.topMenu) makeControlCenterButton((TextView) btnSettings);
 
         // Keep focus on the top bar at its ends and at the top: Android's focus finder would otherwise
         // jump to a tile far below when there is nothing in that direction.
@@ -997,6 +1041,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return;
         }
         restartIdleClock();
+        if (wallpaperFallbackGlow) {
+            if (wallpaperPlayer.showing()) wallpaperRetries = 0;
+            else handler.postDelayed(wallpaperRetry, WALLPAPER_RETRY_MS);
+        }
         promptsPaused = false;
         if (grid.getAdapter() == null) grid.setAdapter(adapter);   // dropped by onTrimMemory
         switch (tileRefresh.onResume(packagesChangedSinceRebuild())) {
@@ -1207,6 +1255,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onPause() {
         super.onPause();
         root.removeCallbacks(showIdleClock);
+        handler.removeCallbacks(wallpaperRetry);
         endReorder();   // Home or another app while reordering keeps the order so far
         wallpaperPlayer.stop();
         stopAmbientAnimation();
@@ -1687,6 +1736,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             });
             return;
         }
+        // Before the dock has its final padding the tile still sits near the top: placed there, the highlight
+        // would show up under the header and then slide down. refitGlass places it once the grid settles.
+        if (!gridSettled) return;
         // Tile rect in root coordinates, using layout positions (ignores the scale animation).
         Rect r = tileRect;
         r.set(0, 0, card.getWidth(), card.getHeight());
@@ -2820,18 +2872,19 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** sleep_timer_button's pill; null without it. */
     private TextView btnBedtime;
 
-    /** control_center: a round toggles button just before Settings that opens the quick settings tiles. */
-    private void addControlCenterButton() {
-        ViewGroup bar = findViewById(R.id.topButtons);
-        TextView button = (TextView) getLayoutInflater().inflate(R.layout.top_app_button, bar, false);
-        button.setId(View.generateViewId());
-        button.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_control_center, 0, 0, 0);
-        button.setContentDescription(getString(R.string.control_center));
-        button.setOnClickListener(this::showControlCenter);
-        int settings = bar.indexOfChild(findViewById(R.id.btnSettings));
-        bar.addView(button, getResources().getBoolean(R.bool.rtl_menu_bar) ? settings + 1 : settings);
-        topAppButtons.add(button);
+    /**
+     * control_center: the Settings pill becomes a round toggles button that opens the quick settings tiles, whose
+     * All settings tile stands in for it. Holding OK still opens the Settings pill's menu.
+     */
+    private void makeControlCenterButton(TextView settings) {
+        settings.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_control_center, 0, 0, 0);
+        settings.setText(getString(R.string.control_center));
+        makeIconOnly(settings);
+        settings.setOnClickListener(this::showControlCenter);
     }
+
+    /** usb_button's package, shown as a USB tile in control_center instead of a top-bar button; "" for none. */
+    private String usbPackage = "";
 
     /**
      * control_center, after the Google TV panel: two columns of rounded tiles, each a glyph on a round badge
@@ -2895,6 +2948,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         addControlTile(row, popup, R.drawable.ic_sleep_timer, false, getString(R.string.screensaver),
                 getString(R.string.start_now), () -> open(startDream));
         row = controlRow(panel, gap);
+        Intent usb = usbPackage.isEmpty() ? null : getPackageManager().getLeanbackLaunchIntentForPackage(usbPackage);
+        if (usb == null && !usbPackage.isEmpty()) usb = getPackageManager().getLaunchIntentForPackage(usbPackage);
+        if (usb != null) {
+            String drive = usbDrive();
+            Intent openUsb = usb;
+            addControlTile(row, popup, R.drawable.ic_usb, drive != null, getString(R.string.usb),
+                    drive != null ? drive : getString(R.string.no_usb_drive), () -> open(openUsb));
+        }
         addControlTile(row, popup, R.drawable.ic_line_settings, false, getString(R.string.all_settings),
                 null, () -> open(systemIntent(Settings.ACTION_SETTINGS)));
 
@@ -2938,6 +2999,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         row.addView(tile);
         return tile;
+    }
+
+    /** The name of a mounted USB drive, or null when none is plugged in. */
+    private String usbDrive() {
+        android.os.storage.StorageManager sm = getSystemService(android.os.storage.StorageManager.class);
+        if (sm == null) return null;
+        for (android.os.storage.StorageVolume v : sm.getStorageVolumes()) {
+            if (v.isRemovable() && android.os.Environment.MEDIA_MOUNTED.equals(v.getState())) return v.getDescription(this);
+        }
+        return null;
     }
 
     /** Where sound goes: a Bluetooth or USB device by name, the HDMI ARC receiver, headphones, or the TV. */
