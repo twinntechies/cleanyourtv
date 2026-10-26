@@ -23,5 +23,6 @@
   "clock_wallpaper": true,
   "restore_key_services": true,
   "sleep_timer_button": true,
-  "wifi_dropdown": true
+  "wifi_dropdown": true,
+  "control_center": true
 }

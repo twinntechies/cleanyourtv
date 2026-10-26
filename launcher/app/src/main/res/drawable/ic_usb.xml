@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- usb_button: a USB pen drive, tinted like the other top-bar icons, and banner_usb's glyph. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="22dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M8.5,1.5h7v6h-7zM10,3.5h1.5v1.5h-1.5zM12.5,3.5h1.5v1.5h-1.5zM6,10.5c0,-1.1 0.9,-2 2,-2h8c1.1,0 2,0.9 2,2v10c0,1.1 -0.9,2 -2,2H8c-1.1,0 -2,-0.9 -2,-2zM10.8,18a1.2,1.2 0 1,0 2.4,0a1.2,1.2 0 1,0 -2.4,0z" />
+</vector>

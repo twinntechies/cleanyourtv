@@ -1,20 +1,50 @@
 <h1 align="center">An Apple TV–style home for the Xiaomi TV A Pro 2026</h1>
 
 <p align="center">
-A clean, ad-free Google TV with a calm, macOS-inspired home screen.<br>
+A clean, ad-free Google TV with a calm, macOS-inspired home screen and a Google TV–style Control Centre.<br>
 Built on <a href="https://github.com/Gathin23/cleanyourtv">CleanYourTV</a>: no root, nothing flashed, and every change can be undone.
 </p>
 
 <p align="center">
-<img src="docs/readme/home.jpg" alt="The new home screen: greeting, a glass clock card, top buttons and a six-app dock over a misty mountain wallpaper" width="860">
+<img alt="Google TV on Android 14" src="https://img.shields.io/badge/Google%20TV-Android%2014-34A853">
+<img alt="No root" src="https://img.shields.io/badge/root-not%20needed-0A84FF">
+<img alt="Fully undoable" src="https://img.shields.io/badge/changes-fully%20undoable-30D158">
+<img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-lightgrey">
+</p>
+
+<p align="center">
+<img src="docs/readme/home.jpg" alt="The new home screen: greeting, a glass clock card, a row of round top buttons and a six-app dock over a misty mountain wallpaper" width="860">
+</p>
+
+<p align="center">
+<a href="#before-and-after">Before and after</a> ·
+<a href="#the-home-screen">Home screen</a> ·
+<a href="#control-centre">Control Centre</a> ·
+<a href="#the-wi-fi-menu">Wi-Fi menu</a> ·
+<a href="#more-screens">More screens</a> ·
+<a href="#what-was-removed">What was removed</a> ·
+<a href="#setup-guide">Setup guide</a> ·
+<a href="#undo-everything">Undo</a>
 </p>
 
 | | |
 |---|---|
 | **TV** | Xiaomi TV A Pro 2026, 4K (`MiTV-MZTU0`, MediaTek `mt5896`) |
 | **System** | Google TV on Android 14 |
-| **Launcher** | `com.gathin.tvhome`, built from `launcher/` in this repo |
+| **Launcher** | `com.gathin.tvhome`, built from [`launcher/`](launcher) in this repo |
 | **Theme** | [`themes/apple-tv-clock-card`](themes/apple-tv-clock-card) |
+| **Themes** | This one and the original project's; 11 ship in [`themes/`](themes/) |
+| **Add-ons** | [Sleep Timer](addons/sleep-timer), [Bluetooth Connect](addons/bluetooth-connect), [Wi-Fi Control](addons/wifi-control) |
+
+## Highlights
+
+- **No ads, no clutter.** Sponsored rows, autoplaying trailers and Xiaomi's ad channels are switched off.
+- **A home that feels like Apple TV.** A greeting, a glass clock card, round glass buttons and a centred dock of six apps.
+- **A Control Centre** like Google TV's own: Wi-Fi, Bluetooth, audio output, picture, accessibility and the screensaver, one press away.
+- **A macOS-style Wi-Fi menu** that switches Wi-Fi and joins networks without leaving Home.
+- **Bedtime and a lock screen:** a sleep timer on the moon button, and a lock that only **OK** opens.
+- **Light on a 1 GB TV:** no internet permission, no background services, no analytics.
+- **Safe:** apps are disabled, never deleted, and one command brings everything back.
 
 ---
 
@@ -23,11 +53,11 @@ Built on <a href="https://github.com/Gathin23/cleanyourtv">CleanYourTV</a>: no r
 | Before: Google TV | After |
 |---|---|
 | ![Google TV's stock home, full of sponsored banners and recommendations](docs/readme/before.jpg) | ![The new home screen](docs/readme/home.jpg) |
-| Sponsored banners, autoplaying trailers, rows of recommendations and Xiaomi's own ad channels. | One greeting, the time, seven buttons and the six apps we actually watch. |
+| Sponsored banners, autoplaying trailers, rows of recommendations and Xiaomi's own ad channels. | One greeting, the time, a row of round buttons and the six apps we actually watch. |
 
 ---
 
-## What's on the home screen
+## The home screen
 
 ### Header
 - **Greeting** on one line, with the name in bold ("Good evening, **Name**"), level with the top buttons.
@@ -40,9 +70,11 @@ Built on <a href="https://github.com/Gathin23/cleanyourtv">CleanYourTV</a>: no r
 | Padlock | Locks the screen: a large centred clock over the wallpaper until **OK** is pressed. |
 | Inputs | HDMI and other sources. |
 | Gemini | Opens Google's assistant. |
-| Moon | Sleep timer and bedtime: 15 to 120 minutes, or Cancel. |
-| Wi-Fi | A macOS-style Wi-Fi menu (below). |
+| USB | Opens the TV's file browser for a USB drive. |
+| Moon | Sleep timer and bedtime. |
+| Wi-Fi | The macOS-style [Wi-Fi menu](#the-wi-fi-menu). |
 | App library | Every app, as square cards. |
+| Toggles | The [Control Centre](#control-centre). |
 | Settings | The TV's settings. The remote's own Settings button works too. |
 
 ### Dock
@@ -52,7 +84,28 @@ YouTube, Netflix, JioHotstar, Prime Video, ZEE5 and aha, on square glass tiles i
 - **Wallpapers**: 12 calm nature photos, shuffled every 30 minutes and dimmed slightly so text stays readable.
 - **Hold OK** on a tile: Move, Remove or App info.
 - **Home at every power-on**, instead of the last app.
-- **Idle clock** after 10 minutes on Home; with `idle_lock`, it also locks the screen.
+- **Idle clock** after 10 minutes on Home. With `idle_lock`, the screensaver is the lock screen, its clock held in the centre.
+
+---
+
+## Control Centre
+
+<img src="docs/readme/control.jpg" alt="The Control Centre: a dark glass panel of rounded tiles for Wi-Fi, Bluetooth, Audio output, Picture, Accessibility, Screensaver and All settings" width="860">
+
+The toggles button opens a panel of rounded tiles, after the one on Google TV. The focused tile turns white, and
+a tile's badge turns blue while that thing is on.
+
+| Tile | Shows | Opens |
+|---|---|---|
+| Wi-Fi | The network name, or Off | The [Wi-Fi menu](#the-wi-fi-menu) |
+| Bluetooth | On or Off | Bluetooth Connect, to pair headphones and speakers |
+| Audio output | Where the sound goes: TV, a Bluetooth speaker or headphones by name, or HDMI ARC | Sound settings |
+| Picture | | Picture settings |
+| Accessibility | | Accessibility settings |
+| Screensaver | Start now | The screensaver, straight away |
+| All settings | | The TV's settings |
+
+Back closes the panel. It is the `control_center` switch, on in this theme and off by default.
 
 ---
 
@@ -66,7 +119,9 @@ YouTube, Netflix, JioHotstar, Prime Video, ZEE5 and aha, on square glass tiles i
 - **Joining**: choose a network and a password card opens over the screen. A saved or open network connects straight away.
 - **Bluetooth Connect** shows On or Off. **Network…** opens the full network settings.
 
-Android 10 and later only let the Settings app switch Wi-Fi or join networks. The small Wi-Fi Control add-on targets Android 9, which keeps those abilities, and it only acts when the launcher asks. Without it, the toggle and the network rows open Wi-Fi settings.
+Android 10 and later only let the Settings app switch Wi-Fi or join networks. The small Wi-Fi Control add-on targets
+Android 9, which keeps those abilities, and it only acts when the launcher asks. Without it, the toggle and the network
+rows open Wi-Fi settings.
 
 ---
 
@@ -198,11 +253,25 @@ All are in `launcher/app/src/main/res/values/config.xml` and can also be set in 
 | `analog_clock` | A glass analog clock instead of the digital one |
 | `square_tiles` | Square glass dock tiles with each app's logo |
 | `assistant_button` | A Gemini button in the top bar |
+| `usb_button` | A USB button that opens the given file browser app |
 | `sleep_timer_button` | A moon button with the sleep timer dropdown |
 | `wifi_dropdown` | The macOS-style Wi-Fi menu |
+| `control_center` | The toggles button and its Control Centre panel |
 | `library_square_cards` | Square App library cards with the name over the art |
 | `lock_button` | A padlock button that opens the lock screen |
-| `idle_lock` | The screensaver locks the screen until OK is pressed |
+| `idle_lock` | The screensaver locks the screen until OK is pressed, with the clock held in the centre |
+
+## FAQ
+
+**Will this break my TV?** Nothing is deleted or flashed. Apps are disabled with Android's own `pm disable-user`, and
+the lists keep away from what the TV needs to run: HDMI, the tuner, the remote, Bluetooth, the keyboard and the Play Store.
+
+**Can I go back to Google TV?** Yes: see [Undo everything](#undo-everything). A factory reset also restores it.
+
+**Does the launcher go online?** No. It has no internet permission. Every screen is drawn on the TV.
+
+**Will it work on another TV?** The launcher runs on Android TV 8.0 and later. The debloat lists are for this Xiaomi
+model; for other TVs see the tested lists in [CleanYourTV](https://github.com/Gathin23/cleanyourtv).
 
 ## Credits
 

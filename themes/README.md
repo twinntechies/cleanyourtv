@@ -29,6 +29,7 @@ refused (copy a theme first), and a `config.json` it cannot read is named before
 | `six-columns/` | Six smaller tiles per row and one grid row visible under the dock | <img src="six-columns/screenshot.jpg" width="320" alt="six-columns theme"> |
 | `retro/` | Pure black, a dock with no band or border, a rim-only focus highlight (`glass_style: rim`), no colour gradient, icon-only top buttons, and a wallpaper for morning, afternoon and night. The three pictures are the author's own; see `retro/CREDITS.md`. By [REGT-URRED](https://github.com/REGT-URRED) | <img src="retro/screenshot.jpg" width="320" alt="retro theme"> |
 | `sweden/` | Three photos of Sweden from Wikimedia Commons (the aurora over Abisko, Vasabron at dusk, Skeppsbron in the evening), a new one every hour with its place and photographer under the buttons; six small tiles in a frosted-glass dock, round icon-only buttons, no hero name. The photos are CC BY / CC BY-SA, not MIT: see `sweden/CREDITS.md` | <img src="sweden/screenshot.jpg" width="320" alt="sweden theme"> |
+| `apple-tv-clock-card/` | An Apple TV style home: twelve calm nature photos shuffled every 30 minutes, a one-line greeting, a bold clock on a glass card, round icon-only buttons with the Wi-Fi menu, the Control Centre and the lock button, and six square tiles in a centred glass dock. The photos are CC BY / CC BY-SA, not MIT: see `apple-tv-clock-card/CREDITS.md` | <img src="apple-tv-clock-card/screenshot.jpg" width="320" alt="apple-tv-clock-card theme"> |
 
 Every theme folder has a `screenshot.jpg` of Home with that theme on a real TV. `tools/theme.sh` never
 pushes it; it is only here so you can see a theme before you try it.
@@ -96,6 +97,19 @@ A new key needs one there in the same pull request.
 | `focus_overshoot` | bool | The highlight and the focused tile swing past their target before settling (`true` by default); `false` glides straight there with smooth scrolling |
 | `vpn_app` | string | App the network pill opens when a VPN is configured; also shows a red "VPN off" badge while no VPN is up |
 | `vpn_pill` | bool | The VPN as its own pill after the network pill instead of a badge inside it: solid green while a VPN is up, solid red "VPN off" while none is and `vpn_app` is installed, hidden otherwise. Pressing it opens `vpn_app` (without it, the App library, or VPN settings with `app_library` off); it keeps its label with `icon_only_buttons`; the network pill then opens Wi-Fi settings. Ignored with `top_menu`. A VPN app's kill switch holds a VPN up while the app says disconnected, so the pill stays green then (`false` by default) |
+| `wifi_dropdown` | bool | The network pill opens a macOS-style Wi-Fi menu: a toggle, this network, the strongest nearby ones and Bluetooth; switching and joining need the Wi-Fi Control add-on, otherwise the rows open Wi-Fi settings (`false` by default) |
+| `control_center` | bool | A round toggles button before Settings that opens a panel of tiles: Wi-Fi, Bluetooth, Audio output, Picture, Accessibility, Screensaver and All settings (`false` by default) |
+| `clock_card` | bool | One-line greeting with the name in bold, and the time and date on a frosted-glass card (`false` by default) |
+| `bold_clock` | bool | A bold clock whose colon blinks every second (`false` by default) |
+| `heavy_clock` | bool | The clock at weight 700, with a small AM/PM on its baseline (`false` by default) |
+| `analog_clock` | bool | A glass analog clock instead of the digital one (`false` by default) |
+| `square_tiles` | bool | Square dock tiles with each app's icon on frosted glass, the dock only as wide as its tiles and centred (`false` by default) |
+| `assistant_button` | bool | A sparkle button in the top bar that opens the assistant (`false` by default) |
+| `usb_button` | string | Package of a file browser a round USB button in the top bar opens; empty for no button |
+| `sleep_timer_button` | bool | A moon button whose dropdown sets a bedtime in the Sleep Timer add-on (`false` by default) |
+| `library_square_cards` | bool | Square App library cards with the name over the art (`false` by default) |
+| `lock_button` | bool | A padlock button at the start of the top bar that opens a lock screen; only OK unlocks (`false` by default) |
+| `idle_lock` | bool | The launcher's screensaver is the lock screen, its clock held in the centre, until OK is pressed |
 | `animations` | bool | Basic focus, glass, title and tile entrance motion; true by default |
 | `advanced_effects` | bool | Optional lifted tile, icon zoom, smooth ambient colour and app opening effects; false by default |
 | `show_home_settings_shortcut` | bool | Keep the optional Default-home tile visible when the TV has a home picker; false by default |

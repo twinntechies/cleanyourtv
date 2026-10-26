@@ -75,6 +75,16 @@
     <string name="quick_network">Network</string>
     <string name="quick_apps">Apps</string>
     <string name="quick_apps_hint">Re-enable</string>
+    <string name="control_center">Quick settings</string>
+    <string name="bluetooth">Bluetooth</string>
+    <string name="audio_output">Audio output</string>
+    <string name="tv_speakers">TV</string>
+    <string name="headphones">Headphones</string>
+    <string name="picture">Picture</string>
+    <string name="accessibility">Accessibility</string>
+    <string name="screensaver">Screensaver</string>
+    <string name="start_now">Start now</string>
+    <string name="all_settings">All settings</string>
     <string name="on">On</string>
     <string name="off">Off</string>
     <string name="enable">Enable</string>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Banner for a firmware updater tile (config.xml, app_banners): a teal field with a screen and a download arrow. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="320dp" android:height="180dp">
+        <shape android:shape="rectangle">
+            <gradient android:angle="315" android:startColor="#FF14B8A6" android:endColor="#FF0E6E7E" />
+        </shape>
+    </item>
+    <item android:width="76dp" android:height="76dp" android:gravity="center"
+        android:drawable="@drawable/ic_system_update" />
+</layer-list>

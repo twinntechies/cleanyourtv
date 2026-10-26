@@ -260,6 +260,10 @@ final class Config {
     final boolean clockCard;
     /** A round button in the top bar that opens the TV's assistant, such as Gemini (config.xml, assistant_button). */
     final boolean assistantButton;
+    /** The package a round USB button in the top bar opens, or empty for none (config.xml, usb_button). */
+    final String usbButton;
+    /** A toggles button opens a panel of quick setting tiles (config.xml, control_center). */
+    final boolean controlCenter;
     /** App library cards as squares, the app's icon filling each with its name over it (library_square_cards). */
     final boolean librarySquareCards;
     /** A moon button in the top bar whose dropdown sets the Sleep Timer add-on (config.xml, sleep_timer_button). */
@@ -292,7 +296,9 @@ final class Config {
                    List<RaceWeekend.Race> raceCalendar, boolean cinematicHome, boolean ambientGlow, boolean appGlow, boolean fadeRows, int homeIdleClockMinutes,
                    boolean keyFilter, boolean dockGlass, String glowStyle, boolean wallpaperCaptions,
                    boolean handleViewInputs, boolean tileMenu, boolean dockEvenPadding, boolean dockBand, boolean cinematicDots, boolean cinematicWhiteFocus, boolean wifiStatusColor, int cinematicScrim, int cinematicArt,
-                   Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean powerOnHome, boolean homeLongPressHome, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset, boolean dateBelowClock, boolean vpnPill, String locale, boolean powerOnHomeAlways, boolean analogClock, boolean squareTiles, boolean boldClock, boolean clockCard, boolean assistantButton, boolean librarySquareCards, boolean sleepTimerButton, boolean heavyClock, boolean wifiDropdown, boolean lockButton, boolean idleLock) {
+                   Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean powerOnHome, boolean homeLongPressHome, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset, boolean dateBelowClock, boolean vpnPill, String locale, boolean powerOnHomeAlways, boolean analogClock, boolean squareTiles, boolean boldClock, boolean clockCard, boolean assistantButton, boolean librarySquareCards, boolean sleepTimerButton, boolean heavyClock, boolean wifiDropdown, boolean lockButton, boolean idleLock, String usbButton, boolean controlCenter) {
+        this.usbButton = usbButton;
+        this.controlCenter = controlCenter;
         this.lockButton = lockButton;
         this.idleLock = idleLock;
         this.wifiDropdown = wifiDropdown;
@@ -529,6 +535,8 @@ final class Config {
         boolean idleLock = res.getBoolean(R.bool.idle_lock);
         boolean clockCard = res.getBoolean(R.bool.clock_card);
         boolean assistantButton = res.getBoolean(R.bool.assistant_button);
+        String usbButton = res.getString(R.string.usb_button);
+        boolean controlCenter = res.getBoolean(R.bool.control_center);
         boolean librarySquareCards = res.getBoolean(R.bool.library_square_cards);
         boolean sleepTimerButton = res.getBoolean(R.bool.sleep_timer_button);
         boolean wifiDropdown = res.getBoolean(R.bool.wifi_dropdown);
@@ -644,6 +652,8 @@ final class Config {
             idleLock = bool(json, "idle_lock", idleLock);
             clockCard = bool(json, "clock_card", clockCard);
             assistantButton = bool(json, "assistant_button", assistantButton);
+            usbButton = string(json, "usb_button", usbButton);
+            controlCenter = bool(json, "control_center", controlCenter);
             librarySquareCards = bool(json, "library_square_cards", librarySquareCards);
             sleepTimerButton = bool(json, "sleep_timer_button", sleepTimerButton);
             wifiDropdown = bool(json, "wifi_dropdown", wifiDropdown);
@@ -715,7 +725,7 @@ final class Config {
                 dockBand, cinematicDots, cinematicWhiteFocus, wifiStatusColor, cinematicScrim, cinematicArt, wallpaperMoods, gamepadPassthrough,
                 consumeVolumeKeys, powerOnHome, homeLongPressHome, wifiStatusWarnings, topBarApps, showGreeting, headerWhite, clockWallpaper,
                 Math.max(0, Math.min(90, clockWallpaperDim)), clockGlow, glassStyle, singleRow && dockRow, dockBandAll, lunar, lunarOffset,
-                dateBelowClock, vpnPill, locale, powerOnHomeAlways, analogClock, squareTiles && !singleRow, boldClock, clockCard, assistantButton, librarySquareCards, sleepTimerButton, heavyClock, wifiDropdown, lockButton, idleLock);
+                dateBelowClock, vpnPill, locale, powerOnHomeAlways, analogClock, squareTiles && !singleRow, boldClock, clockCard, assistantButton, librarySquareCards, sleepTimerButton, heavyClock, wifiDropdown, lockButton, idleLock, usbButton == null ? "" : usbButton.trim(), controlCenter);
     }
 
     /**

@@ -770,8 +770,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnLibraryTop.setVisibility(cfg.libraryButton && cfg.appLibrary ? View.VISIBLE : View.GONE);
         addTopBarApps(cfg.topBarApps, cfg.launchActions);
         if (cfg.assistantButton) addAssistantButton();
+        if (!cfg.usbButton.isEmpty()) addUsbButton(cfg.usbButton);
         if (cfg.sleepTimerButton) addSleepTimerButton();
         if (cfg.lockButton) addLockButton();
+        if (cfg.controlCenter) addControlCenterButton();
         librarySquareCards = cfg.librarySquareCards;
         appBanners = cfg.appBanners;
         iconOnlyButtons = cfg.iconOnlyButtons;
@@ -2579,6 +2581,32 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         topAppButtons.add(button);
     }
 
+    /** usb_button: a round USB button that opens the TV's file browser for a USB drive, placed like a top-bar app. */
+    private void addUsbButton(String pkg) {
+        PackageManager pm = getPackageManager();
+        Intent launch = pm.getLeanbackLaunchIntentForPackage(pkg);
+        if (launch == null) launch = pm.getLaunchIntentForPackage(pkg);
+        if (launch == null) return;   // not installed, or disabled
+        CharSequence label;
+        try {
+            label = pm.getApplicationInfo(pkg, 0).loadLabel(pm);
+        } catch (PackageManager.NameNotFoundException e) {
+            return;
+        }
+        ViewGroup bar = findViewById(R.id.topButtons);
+        TextView button = (TextView) getLayoutInflater().inflate(R.layout.top_app_button, bar, false);
+        button.setId(View.generateViewId());
+        Drawable usb = getDrawable(R.drawable.ic_usb);
+        int size = Math.round(22 * density);
+        usb.setBounds(0, 0, size, size);
+        button.setCompoundDrawablesRelative(usb, null, null, null);
+        button.setContentDescription(label);
+        Intent target = launch;
+        button.setOnClickListener(v -> open(new Intent(target)));
+        bar.addView(button, bar.indexOfChild(getResources().getBoolean(R.bool.rtl_menu_bar) ? btnVpn : btnWifi));
+        topAppButtons.add(button);
+    }
+
     /** The Sleep Timer add-on's screenless entry: the int extra "minutes" sets the timer, 0 cancels it. */
     private static final ComponentName SLEEP_TIMER_SET =
             new ComponentName("io.github.luyzfernando08.sleeptimer", "io.github.luyzfernando08.sleeptimer.SetActivity");
@@ -2791,6 +2819,152 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** sleep_timer_button's pill; null without it. */
     private TextView btnBedtime;
+
+    /** control_center: a round toggles button just before Settings that opens the quick settings tiles. */
+    private void addControlCenterButton() {
+        ViewGroup bar = findViewById(R.id.topButtons);
+        TextView button = (TextView) getLayoutInflater().inflate(R.layout.top_app_button, bar, false);
+        button.setId(View.generateViewId());
+        button.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_control_center, 0, 0, 0);
+        button.setContentDescription(getString(R.string.control_center));
+        button.setOnClickListener(this::showControlCenter);
+        int settings = bar.indexOfChild(findViewById(R.id.btnSettings));
+        bar.addView(button, getResources().getBoolean(R.bool.rtl_menu_bar) ? settings + 1 : settings);
+        topAppButtons.add(button);
+    }
+
+    /**
+     * control_center, after the Google TV panel: two columns of rounded tiles, each a glyph on a round badge
+     * (blue while that thing is on), a title and its state. Wi-Fi opens the Wi-Fi dropdown in its place.
+     */
+    private void showControlCenter(View anchor) {
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (12 * density), gap = (int) (10 * density);
+        panel.setPadding(pad, pad, pad, pad);
+        GradientDrawable glass = new GradientDrawable();
+        glass.setColor(0xEB1E1E20);
+        glass.setCornerRadius(24 * density);
+        glass.setStroke(Math.max(1, (int) density), 0x26FFFFFF);
+        panel.setBackground(glass);
+        PopupWindow popup = glassPopup(panel, (int) (380 * density));
+
+        WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        boolean wifiOn = wm != null && wm.isWifiEnabled(), wifi = false, ethernet = false;
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        for (Network net : cm != null ? cm.getAllNetworks() : new Network[0]) {
+            NetworkCapabilities caps = cm.getNetworkCapabilities(net);
+            if (caps == null || caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) continue;
+            if (caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) ethernet = true;
+            if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) wifi = true;
+        }
+        String ssid = wifi && wm != null && wm.getConnectionInfo() != null ? wm.getConnectionInfo().getSSID() : null;
+        if (ssid != null) ssid = ssid.replace("\"", "").trim();
+        if (ssid != null && (ssid.isEmpty() || ssid.contains("unknown") || ssid.equals("0x"))) ssid = null;
+        String wifiStatus = ethernet ? getString(R.string.ethernet) : !wifiOn ? getString(R.string.off)
+                : ssid != null ? ssid : getString(wifi ? R.string.connected : R.string.on);
+
+        Intent bluetooth = getPackageManager().getLeanbackLaunchIntentForPackage("com.gathin.btconnect");
+        if (bluetooth == null) bluetooth = getPackageManager().getLaunchIntentForPackage("com.gathin.btconnect");
+        if (bluetooth == null) bluetooth = systemIntent(Settings.ACTION_BLUETOOTH_SETTINGS);
+        boolean btOn = false;
+        try {
+            android.bluetooth.BluetoothManager bm = (android.bluetooth.BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+            btOn = bm != null && bm.getAdapter() != null && bm.getAdapter().isEnabled();
+        } catch (SecurityException ignored) {
+        }
+
+        Intent dream = new Intent(Intent.ACTION_MAIN)
+                .setClassName("com.android.systemui", "com.android.systemui.Somnambulator");
+        if (getPackageManager().resolveActivity(dream, 0) == null) dream = new Intent(this, ClockActivity.class);
+
+        Intent openBluetooth = bluetooth, startDream = dream;
+        LinearLayout row = controlRow(panel, 0);
+        View first = addControlTile(row, popup, R.drawable.ic_line_wifi, wifiOn || ethernet, getString(R.string.wifi),
+                wifiStatus, () -> showWifiMenu(btnWifi.getVisibility() == View.VISIBLE ? btnWifi : anchor));
+        addControlTile(row, popup, R.drawable.ic_bluetooth, btOn, getString(R.string.bluetooth),
+                getString(btOn ? R.string.on : R.string.off), () -> open(openBluetooth));
+        row = controlRow(panel, gap);
+        addControlTile(row, popup, R.drawable.ic_line_speaker, false, getString(R.string.audio_output),
+                audioOutput(), () -> open(systemIntent(Settings.ACTION_SOUND_SETTINGS)));
+        addControlTile(row, popup, R.drawable.ic_line_picture, false, getString(R.string.picture),
+                null, () -> open(systemIntent(Settings.ACTION_DISPLAY_SETTINGS)));
+        row = controlRow(panel, gap);
+        addControlTile(row, popup, R.drawable.ic_line_accessibility, false, getString(R.string.accessibility),
+                null, () -> open(systemIntent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
+        addControlTile(row, popup, R.drawable.ic_sleep_timer, false, getString(R.string.screensaver),
+                getString(R.string.start_now), () -> open(startDream));
+        row = controlRow(panel, gap);
+        addControlTile(row, popup, R.drawable.ic_line_settings, false, getString(R.string.all_settings),
+                null, () -> open(systemIntent(Settings.ACTION_SETTINGS)));
+
+        dropIn(popup, panel, anchor, getResources().getBoolean(R.bool.rtl_menu_bar) ? Gravity.START : Gravity.END);
+        first.requestFocus();
+    }
+
+    private LinearLayout controlRow(LinearLayout panel, int topMargin) {
+        LinearLayout row = new LinearLayout(this);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = topMargin;
+        panel.addView(row, lp);
+        return row;
+    }
+
+    private View addControlTile(LinearLayout row, PopupWindow popup, int iconRes, boolean on, String title,
+                                String status, Runnable action) {
+        View tile = getLayoutInflater().inflate(R.layout.item_control_tile, row, false);
+        if (row.getChildCount() > 0) ((LinearLayout.LayoutParams) tile.getLayoutParams()).setMarginStart((int) (10 * density));
+        int[][] states = {{android.R.attr.state_focused}, {}};
+        ImageView icon = tile.findViewById(R.id.icon);
+        icon.setImageResource(iconRes);
+        GradientDrawable badge = new GradientDrawable();
+        badge.setShape(GradientDrawable.OVAL);
+        badge.setColor(on ? 0xFF1A73E8 : 0x00000000);
+        icon.setBackground(badge);
+        icon.setImageTintList(on ? android.content.res.ColorStateList.valueOf(Color.WHITE)
+                : new android.content.res.ColorStateList(states, new int[]{0xFF202124, Color.WHITE}));
+        TextView name = tile.findViewById(R.id.title);
+        name.setText(title);
+        name.setTextColor(new android.content.res.ColorStateList(states, new int[]{0xFF202124, Color.WHITE}));
+        TextView line = tile.findViewById(R.id.status);
+        if (status == null) line.setVisibility(View.GONE);
+        else line.setText(status);
+        line.setTextColor(new android.content.res.ColorStateList(states, new int[]{0xFF5F6368, 0xB3FFFFFF}));
+        tile.setContentDescription(status == null ? title : title + ", " + status);
+        tile.setOnClickListener(v -> {
+            popup.dismiss();
+            action.run();
+        });
+        row.addView(tile);
+        return tile;
+    }
+
+    /** Where sound goes: a Bluetooth or USB device by name, the HDMI ARC receiver, headphones, or the TV. */
+    private String audioOutput() {
+        android.media.AudioManager audio = getSystemService(android.media.AudioManager.class);
+        if (audio == null) return getString(R.string.tv_speakers);
+        String arc = null, wired = null;
+        for (android.media.AudioDeviceInfo d : audio.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS)) {
+            switch (d.getType()) {
+                case android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP:
+                case android.media.AudioDeviceInfo.TYPE_USB_HEADSET:
+                case android.media.AudioDeviceInfo.TYPE_USB_DEVICE:
+                    return d.getProductName().toString();
+                case android.media.AudioDeviceInfo.TYPE_HDMI_ARC:
+                case 29:   // AudioDeviceInfo.TYPE_HDMI_EARC, API 31
+                    arc = "HDMI ARC";
+                    break;
+                case android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES:
+                case android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET:
+                    wired = getString(R.string.headphones);
+                    break;
+                default:
+                    break;
+            }
+        }
+        return arc != null ? arc : wired != null ? wired : getString(R.string.tv_speakers);
+    }
 
     private static final int MAC_BLUE = 0xFF0A84FF, MAC_GREY = 0x33FFFFFF;
     private static final String WIFI_CONTROL = "com.gathin.wificontrol";
