@@ -62,6 +62,8 @@
         </intent>
         <!-- China-market MIUI TV firmware: the Settings and Wi-Fi pills fall back to Xiaomi's settings app.
              Fire TV: the real settings menu lives in the stock launcher (see settings_fallback_components). -->
+        <!-- wifi_dropdown: the Wi-Fi Control add-on switches Wi-Fi and joins networks for it. -->
+        <package android:name="com.gathin.wificontrol" />
         <package android:name="com.xiaomi.mitv.settings" />
         <package android:name="com.tcl.settings" />
         <package android:name="com.amazon.tv.launcher" />
@@ -176,6 +178,13 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:noHistory="true"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <!-- lock_button's lock screen, over Home until OK is pressed. -->
+        <activity
+            android:name=".LockActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
 
         <!-- stock_home_redirect at boot: HomeKeyService opens this invisible activity once, so the screen behind

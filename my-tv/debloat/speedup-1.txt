@@ -1,0 +1,8 @@
+# MiTV-MZTU0 speed-up, batch 1: Android and Google extras nobody uses
+com.android.printspooler
+com.google.android.syncadapters.calendar
+com.android.tv.feedbackconsent
+com.android.healthconnect.controller
+com.android.dynsystem
+com.google.android.partnersetup
+com.google.android.marvin.talkback

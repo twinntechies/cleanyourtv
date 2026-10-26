@@ -19,6 +19,12 @@
     <string name="festival_diwali_greeting">Happy Diwali</string>
     <string name="ethernet">Ethernet</string>
     <string name="offline">Offline</string>
+    <string name="lock_screen">Lock screen</string>
+    <string name="press_ok_to_unlock">Press OK to unlock</string>
+    <string name="bedtime">Bedtime</string>
+    <string name="bedtime_hint">▲ ▼ change  ·  OK next</string>
+    <string name="bedtime_set">Set bedtime</string>
+    <string name="bedtime_off">Turn off bedtime</string>
     <string name="not_available">Not available on this TV</string>
     <string name="cant_open">Can\'t open %1$s</string>
     <string name="date_format">EEEE  d MMMM</string>

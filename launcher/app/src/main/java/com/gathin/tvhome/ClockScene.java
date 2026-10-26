@@ -15,6 +15,7 @@ import android.os.Looper;
 import android.util.DisplayMetrics;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import java.io.File;
 import java.time.LocalDateTime;
@@ -48,6 +49,8 @@ final class ClockScene {
     private int glowColor;
     /** clock_wallpaper or clock_glow false: something else (a picture, or plain black) replaced the coloured glow. */
     private boolean wallpaperShown;
+    /** keepCentred: the clock stays in the middle instead of drifting (the lock screen). */
+    private boolean centred;
     /** clock_wallpaper: the picture start() decodes, its darkening, and the resources to draw it with. */
     private File wallpaperFile;
     private int wallpaperShade;
@@ -65,7 +68,7 @@ final class ClockScene {
     private final Runnable tick = new Runnable() {
         @Override
         public void run() {
-            moveClock();
+            if (!centred) moveClock();
             shiftGlow();
             advanceWallpaper();
             handler.postDelayed(this, MOVE_MS);
@@ -83,6 +86,17 @@ final class ClockScene {
                 glow.setGradientRadius((r - l) * 0.55f));
         colorIndex = random.nextInt(PALETTE.length);
         setGlow(PALETTE[colorIndex]);
+    }
+
+    /**
+     * The lock screen's clock stays centred, and re-centres as the time's width changes. The screensaver keeps
+     * drifting: it can be up for hours, which is what burns into an OLED panel.
+     */
+    void keepCentred() {
+        centred = true;
+        content.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (r - l != or - ol || b - t != ob - ot) placeClock();
+        });
     }
 
     void start() {
@@ -110,13 +124,19 @@ final class ClockScene {
      * Call before start(), which starts the decode (again after a stop() that dropped an unfinished one).
      */
     void useHomeWallpaper(Context ctx) {
+        useHomeWallpaper(ctx, false);
+    }
+
+    /** always: the picture even with clock_wallpaper off, as the lock screen (LockActivity) shows it. */
+    void useHomeWallpaper(Context ctx, boolean always) {
         Config cfg;
         try {
             cfg = Config.load(ctx);
         } catch (RuntimeException e) {
             return;
         }
-        if (!cfg.clockWallpaper) {
+        if (cfg.heavyClock) useHeavyClock(ctx);
+        if (!cfg.clockWallpaper && !always) {
             // clock_glow false: plain black behind the clock (OLED); the clock itself still moves every minute.
             if (!cfg.clockGlow) {
                 wallpaperShown = true;   // also stops the glow's colour cycle
@@ -146,6 +166,21 @@ final class ClockScene {
         }
         wallpaperShade = (cfg.clockWallpaperDim * 255 / 100) << 24;
         wallpaperRes = ctx.getResources();
+    }
+
+    /** heavy_clock: Home's bold digits and small bold uppercase AM/PM in place of the thin clock. */
+    private void useHeavyClock(Context ctx) {
+        TextView clock = content.findViewById(R.id.dreamClock);
+        TextView ampm = content.findViewById(R.id.dreamAmPm);
+        if (clock == null || ampm == null) return;   // the lock screen's layout is bold already
+        android.graphics.Typeface bold = ctx.getResources().getFont(R.font.outfit_bold);
+        clock.setTypeface(bold);
+        clock.setTextColor(0xFFFFFFFF);
+        clock.setLetterSpacing(-0.03f);
+        ampm.setTypeface(bold);
+        ampm.setAllCaps(true);
+        ampm.setLetterSpacing(0.02f);
+        ampm.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, clock.getTextSize() * 0.3f);
     }
 
     private void loadWallpaper() {
@@ -234,8 +269,8 @@ final class ClockScene {
         View parent = (View) content.getParent();
         int maxX = Math.max(0, parent.getWidth() - content.getWidth());
         int maxY = Math.max(0, parent.getHeight() - content.getHeight());
-        float x = maxX * (0.1f + 0.8f * random.nextFloat());
-        float y = maxY * (0.1f + 0.8f * random.nextFloat());
+        float x = centred ? maxX / 2f : maxX * (0.1f + 0.8f * random.nextFloat());
+        float y = centred ? maxY / 2f : maxY * (0.1f + 0.8f * random.nextFloat());
         content.setX(x);
         content.setY(y);
         if (parent.getWidth() > 0 && parent.getHeight() > 0) {

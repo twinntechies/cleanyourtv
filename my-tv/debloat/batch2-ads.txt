@@ -1,0 +1,10 @@
+# Xiaomi TV A Pro 2026 (MiTV-MZTU0, river), Google TV 14
+# Batch 2: PatchWall / Mi Home tab, content rows, partner auto-installs, TV Manager cleaner.
+# Undo: TV_HOST=<tv ip> tools/restore.sh work/batch2-ads.txt
+com.mitv.tvhome.atv
+com.mitv.tvhome.michannel
+com.mitv.tvhome.mitvplus
+com.mitv.tvhome.oemtab
+com.xm.webcontent
+android.autoinstalls.config.google.gtvpai
+com.xiaomi.mitv.tvmanager

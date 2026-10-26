@@ -7,6 +7,8 @@
     <string name="state_off">Nenhum timer ligado.</string>
     <string name="state_on">Desliga às %1$s.</string>
     <string name="no_service">O serviço de acessibilidade do Desligar está desligado (rode o script de instalação).</string>
+    <string name="bedtime_on">Hora de dormir definida. Desliga às %1$s, todos os dias.</string>
+    <string name="bedtime_countdown">Hora de dormir. A TV desliga em</string>
     <string name="warning_title">A TV vai desligar</string>
     <string name="warning_seconds">em %1$d segundos</string>
     <string name="more">Mais 15 minutos</string>

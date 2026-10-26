@@ -7,6 +7,8 @@
     <string name="state_off">No timer set.</string>
     <string name="state_on">Standby at %1$s.</string>
     <string name="no_service">The Sleep Timer accessibility service is off (run the install script).</string>
+    <string name="bedtime_on">Bedtime set. Standby at %1$s, every day.</string>
+    <string name="bedtime_countdown">Bedtime. The TV goes to sleep in</string>
     <string name="warning_title">The TV is turning off</string>
     <string name="warning_seconds">in %1$d seconds</string>
     <string name="more">15 more minutes</string>

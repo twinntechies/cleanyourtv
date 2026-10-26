@@ -1,0 +1,7 @@
+# Xiaomi TV A Pro 2026 (MiTV-MZTU0, river), Google TV 14, build UKN1.240806.017.V816.0.26.6.2.6.URTMIXM
+# Batch 1: Xiaomi + Google telemetry. From examples/xiaomi-tv-a-pro-2026/debloat.txt.
+# Undo: TV_HOST=<tv ip> tools/restore.sh work/batch1-telemetry.txt
+com.miui.tv.analytics
+com.xiaomi.statistic
+com.xiaomi.tvqs.overseas.y24
+com.google.android.feedback

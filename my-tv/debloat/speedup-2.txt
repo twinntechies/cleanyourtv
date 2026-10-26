@@ -1,0 +1,8 @@
+# MiTV-MZTU0 speed-up, batch 2: Xiaomi extras, replaced screensavers, SonyLIV
+com.mitv.gallery
+com.xiaomo.tv.milegal
+com.mitv.toolhouse
+com.xiaomi.mitv.manualhelp
+com.google.android.apps.tv.dreamx
+com.android.dreams.basic
+com.sonyliv

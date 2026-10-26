@@ -6,6 +6,8 @@
     <!-- Android 10 and later only let an app open the warning from the background when it may draw over other
          apps. the install script grants it; on Android 9 it is not needed. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- A daily bedtime's alarm is lost on reboot; BedtimeReceiver sets it again. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -29,6 +31,14 @@
         <!-- Bedtime in one press: a 30-minute timer plus Brightness's night mode, off again on the next press. -->
         <activity
             android:name=".BedtimeActivity"
+            android:taskAffinity=""
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <!-- No screen: the int extra "minutes" sets the timer (0 cancels it), for a launcher's dropdown. -->
+        <activity
+            android:name=".SetActivity"
             android:taskAffinity=""
             android:exported="true"
             android:excludeFromRecents="true"
@@ -63,6 +73,18 @@
             android:name=".AlarmReceiver"
             android:exported="true"
             android:permission="android.permission.WRITE_SECURE_SETTINGS" />
+
+        <!-- Arms the daily bedtime again after a reboot, a clock or time zone change, or an update. -->
+        <receiver
+            android:name=".BedtimeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Its only job is the "lock screen" global action, which on Android 9 and later puts the TV to sleep: an
              ordinary app has no other way to. It asks for no events and cannot read the screen. -->

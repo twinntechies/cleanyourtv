@@ -115,6 +115,21 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return Math.round(tileWidthPx * DESIGN_H_DP / DESIGN_W_DP);
     }
 
+    /** square_tiles: a fixed tile, and the grid column that holds it with its focus zoom and the gap to the next. */
+    static final float SQUARE_TILE_DP = 64f, SQUARE_CELL_DP = 86f;
+
+    static int tileHeightPx(int tileWidthPx, boolean square) {
+        return square ? tileWidthPx : tileHeightPx(tileWidthPx);
+    }
+
+    /**
+     * square_tiles: the grid's side padding that leaves each column {@code cellDp} wide, so the dock is only as wide
+     * as its tiles and sits centred. Never less than the grid's own padding.
+     */
+    static int squareSidePaddingPx(int widthPx, int columns, float cellDp, float density, int minPx) {
+        return Math.max(minPx, Math.round((widthPx - columns * cellDp * density) / 2f));
+    }
+
     /** Height of one grid item: the tile, the name label under it and the item's own padding. */
     static int itemHeightPx(int tileHeightPx, float density) {
         return itemHeightPx(tileHeightPx, true, density);
@@ -216,6 +231,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final Map<String, String> appLabels, appBanners;
     /** Every app tile is its icon on a card tinted from that icon, never its banner (config.xml, uniform_tiles). */
     private final boolean uniformTiles;
+    /** Square icon tiles on the top bar's frosted glass (config.xml, square_tiles); implies the icon tiles above. */
+    private final boolean squareTiles;
     private final List<Entry> items = new ArrayList<>();
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
@@ -242,7 +259,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.tileMenu = cfg.tileMenu;
         this.appLabels = cfg.appLabels;
         this.appBanners = cfg.appBanners;
-        this.uniformTiles = cfg.uniformTiles;
+        this.squareTiles = cfg.squareTiles;
+        this.uniformTiles = cfg.uniformTiles || cfg.squareTiles;
         // Tiles keep their identity across reload(), so a focused tile stays on its app instead of
         // its view being rebound to whatever app now sits in that slot.
         setHasStableIds(true);
@@ -293,9 +311,12 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             if (!seen.add(pkg + '\n' + label)) continue;
             Drawable banner = null;
             // uniform_tiles draws the icon, so an app's banner is never loaded. A module card keeps its banner.
+            // square_tiles still takes a bundled app_banners drawable, as the square art for that tile.
             if (!(uniformTiles && card == null)) {
                 banner = bundledBanner(appBanners.get(pkg));
                 if (banner == null) banner = loadBanner(pm, ri);
+            } else if (squareTiles) {
+                banner = bundledBanner(appBanners.get(pkg));
             }
             // The icon is only drawn (and sampled for the glow) when there is no banner, so a tile with a
             // banner skips loading and decoding it.
@@ -399,7 +420,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         float density = parent.getResources().getDisplayMetrics().density;
         int width = parent.getWidth() > 0 ? parent.getWidth() : parent.getMeasuredWidth();
         int inner = width - parent.getPaddingLeft() - parent.getPaddingRight();
-        int w = tileWidthPx(inner, parent.getHeight(), dockSize, rowsBelowDock, dockTitle, dockRow, density), h = tileHeightPx(w);
+        int w = squareTiles ? Math.round(SQUARE_TILE_DP * density)
+                : tileWidthPx(inner, parent.getHeight(), dockSize, rowsBelowDock, dockTitle, dockRow, density);
+        int h = tileHeightPx(w, squareTiles);
         View card = v.findViewById(R.id.card);
         ViewGroup.LayoutParams cardLp = card.getLayoutParams();
         cardLp.width = w;
@@ -422,9 +445,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             // tvOS-style tile: a large centred mark, no caption inside the card.
             View icon = v.findViewById(R.id.icon);
             FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
-            iconLp.width = iconLp.height = Math.round(h * ICON_SHARE);
+            // square_tiles: the icon is the whole tile, cut to the card's rounded corners.
+            iconLp.width = iconLp.height = squareTiles ? h : Math.round(h * ICON_SHARE);
             iconLp.bottomMargin = 0;
             icon.setLayoutParams(iconLp);
+            if (squareTiles) card.setClipToOutline(true);
         } else if (h < Math.round(DESIGN_H_DP * density)) {
             // Shrunk tiles (e.g. 5 or 6 columns): scale icon and bottom margin proportionally with tile height so the label does not overlap the icon.
             View icon = v.findViewById(R.id.icon);
@@ -476,6 +501,15 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (uniformTiles && e.banner == null) {
             if (e.backdrop == null) e.backdrop = backdrop(e.icon, ambientColorAt(position));
             h.card.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, e.backdrop));
+        }
+        if (squareTiles && e.banner == null) {
+            // pill_bg's glass: white 18% fading to 8%, with its 1dp rim.
+            GradientDrawable glass = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[]{0x2EFFFFFF, 0x14FFFFFF});
+            float density = ctx.getResources().getDisplayMetrics().density;
+            glass.setCornerRadius(cornerRadius(h.card.getLayoutParams().width, density));
+            glass.setStroke(Math.round(density), 0x38FFFFFF);
+            h.card.setBackground(glass);
         }
         if (e.banner != null) {
             h.banner.setImageDrawable(e.banner);

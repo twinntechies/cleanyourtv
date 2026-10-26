@@ -52,6 +52,7 @@ import android.text.Spanned;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
+import android.text.style.TypefaceSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -67,6 +68,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.PopupWindow;
+import android.widget.TextClock;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -198,6 +200,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean shamsi;
     /** greeting_name: said after the greeting, which is shown in capitals. */
     private String greetingName = "";
+    /** clock_card: the greeting in sentence case with the name in bold, the time and date on a glass card. */
+    private boolean clockCard;
+    /** library_square_cards: handed to the App library each time it opens. */
+    private boolean librarySquareCards;
+    /** app_banners: a square card in the App library takes the same bundled art as the square dock. */
+    private Map<String, String> appBanners = Collections.emptyMap();
     /** Optional time-of-day backdrop (config.xml, sky_intensity); 0 keeps it hidden. */
     private SkyView sky;
     private String vpnApp;
@@ -470,6 +478,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             ((TextView) findViewById(R.id.date)).setTextColor(Color.WHITE);
             findViewById(R.id.clockDivider).setBackgroundColor(Color.WHITE);
         }
+        clockCard = cfg.clockCard;
+        if (clockCard) useClockCard();
+        if (cfg.heavyClock) useHeavyClock();
+        if (cfg.analogClock) useAnalogClock();
+        else if (cfg.boldClock) useBoldClock();
         if (getResources().getBoolean(R.bool.rtl_menu_bar)) {
             // Center Hebrew greetings over the numeric time, independent of a visible AM/PM label. The clock's row
             // is watched too: date_below_clock can move the whole row right under a wider date.
@@ -576,6 +589,22 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         grid.setHasFixedSize(true);
         grid.setItemAnimator(null);
+        if (cfg.squareTiles) {
+            // Before the first layout, so the tiles are sized for it: the screen less every container's side padding
+            // and margins between the window and the grid (all match_parent wide).
+            int width = getResources().getDisplayMetrics().widthPixels;
+            View content = findViewById(android.R.id.content);
+            for (View v = grid; v != content && v.getParent() instanceof View; v = (View) v.getParent()) {
+                if (v.getLayoutParams() instanceof ViewGroup.MarginLayoutParams) {
+                    ViewGroup.MarginLayoutParams m = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+                    width -= m.leftMargin + m.rightMargin;
+                }
+                View parent = (View) v.getParent();
+                width -= parent.getPaddingLeft() + parent.getPaddingRight();
+            }
+            int side = AppAdapter.squareSidePaddingPx(width, COLUMNS, AppAdapter.SQUARE_CELL_DP, density, grid.getPaddingLeft());
+            grid.setPadding(side, grid.getPaddingTop(), side, grid.getPaddingBottom());
+        }
         // Tiles that scroll out while one is carried come back from the view cache without a rebind; set their
         // dimming again whenever one attaches, so none stays dim after the drop.
         grid.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
@@ -610,8 +639,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             int h = b - t;
             // Item height follows the tile size, which follows the columns and the rows that must fit (AppAdapter.tileWidthPx).
             int inner = (r - l) - grid.getPaddingLeft() - grid.getPaddingRight();
-            int tileW = AppAdapter.tileWidthPx(inner, h, COLUMNS, rowsBelowDock, cfg.dockTitle, cfg.dockRow, density);
-            int itemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(tileW), density);
+            int tileW = cfg.squareTiles ? Math.round(AppAdapter.SQUARE_TILE_DP * density)
+                    : AppAdapter.tileWidthPx(inner, h, COLUMNS, rowsBelowDock, cfg.dockTitle, cfg.dockRow, density);
+            int itemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(tileW, cfg.squareTiles), density);
             int dockRow = itemH + (int) (AppAdapter.DOCK_EXTRA_DP * density);   // item height plus DockDecoration offsets
             int gridRows = itemH * rowsBelowDock;
             // Keep the hero below the header when the library is enabled on a short screen,
@@ -706,7 +736,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnInputs = findViewById(R.id.btnInputs);
         View btnSettings = findViewById(R.id.btnSettings);
         btnInputs.setOnClickListener(v -> showInputs());
-        btnWifi.setOnClickListener(v -> openNetworkPill());
+        boolean wifiDropdown = cfg.wifiDropdown;
+        btnWifi.setOnClickListener(v -> {
+            if (wifiDropdown && (vpnPill || vpnAppIntent() == null)) showWifiMenu(v);
+            else openNetworkPill();
+        });
         btnVpn.setOnClickListener(v -> openVpnPill());
         btnWifi.setOnLongClickListener(v -> {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
@@ -735,6 +769,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         btnLibraryTop.setVisibility(cfg.libraryButton && cfg.appLibrary ? View.VISIBLE : View.GONE);
         addTopBarApps(cfg.topBarApps, cfg.launchActions);
+        if (cfg.assistantButton) addAssistantButton();
+        if (cfg.sleepTimerButton) addSleepTimerButton();
+        if (cfg.lockButton) addLockButton();
+        librarySquareCards = cfg.librarySquareCards;
+        appBanners = cfg.appBanners;
         iconOnlyButtons = cfg.iconOnlyButtons;
         topMenu = cfg.topMenu;
         wifiIconOnly = iconOnlyButtons && cfg.wifiLabelWidth <= 0;
@@ -786,7 +825,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 focusTile(singleRow ? lastFocused : lastFocused % COLUMNS);
                 return true;
             }
-            int firstButton = btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : firstTopButton().getId();
+            int firstButton = btnLock != null ? btnLock.getId()
+                    : btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : firstTopButton().getId();
             int leftButton = rtlMenuBar ? R.id.btnSettings : firstButton;
             int rightButton = rtlMenuBar ? firstButton : R.id.btnSettings;
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return v.getId() == leftButton;
@@ -940,6 +980,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onResume() {
         super.onResume();
+        // lock_button: Home (singleTask) clears the lock screen off this task, so it is put back until OK unlocks.
+        if (LockActivity.locked) startLockScreen();
         // A festival that started or ended while Home was in the background: rebuild with or without it.
         if (festive != festival.active(LocalDate.now())) {
             recreate();
@@ -1008,6 +1050,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == WIFI_TOGGLE_REQUEST || requestCode == WIFI_JOIN_REQUEST) {
+            // Reopen the dropdown on the new state; a refusal falls back to Wi-Fi settings.
+            if (resultCode == RESULT_OK) {
+                root.postDelayed(() -> {
+                    if (!isFinishing() && openPopup == null) showWifiMenu(btnWifi);
+                }, requestCode == WIFI_TOGGLE_REQUEST ? 1500 : 600);
+            } else {
+                open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
+            }
+            return;
+        }
         if (requestCode == LAUNCHER_SETTINGS_REQUEST && resultCode == RESULT_OK
                 && data != null && data.getBooleanExtra(LauncherSettingsActivity.EXTRA_REORDER, false)) {
             getIntent().putExtra(LauncherSettingsActivity.EXTRA_REORDER, true);
@@ -1246,7 +1299,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** Blue the glass turns while reorder mode is on. */
     private static final int REORDER_ACCENT = 0xFF6EC1FF;
-
     /**
      * Reorder mode (top-bar button). While it is on, every key comes here first:
      * - nothing carried: arrows move focus as usual; OK on a tile picks it up instead of opening the app;
@@ -1597,7 +1649,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         libraryFocusPending = false;
         libraryFromTopBar = false;
         libraryFromVpnPill = false;
-        appLibrary = new AppLibraryDialog(this, animations, reducedMotion, appLibrarySelection, libraryOkOpens, adapter::containsPackage, () -> reloadApps(false), () -> {
+        appLibrary = new AppLibraryDialog(this, animations, reducedMotion, appLibrarySelection, libraryOkOpens, librarySquareCards, appBanners, adapter::containsPackage, () -> reloadApps(false), () -> {
             appLibrary = null;
             openPopup = null;
             if (libraryFromTopBar) {
@@ -2289,6 +2341,149 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         hideHero();
     }
 
+    /** analog_clock: the dial takes the digital clock's place in its row; the TextClocks stay, hidden. */
+    private void useAnalogClock() {
+        View clock = findViewById(R.id.clock);
+        ViewGroup clockRow = (ViewGroup) clock.getParent();
+        int size = Math.round(64 * density);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
+        lp.gravity = Gravity.CENTER_VERTICAL;
+        clockRow.addView(new AnalogClockView(this), clockRow.indexOfChild(clock), lp);
+        clock.setVisibility(View.GONE);
+        findViewById(R.id.ampm).setVisibility(View.GONE);
+    }
+
+    /**
+     * clock_card: the greeting becomes one sentence-case line level with the top buttons, and the time, AM/PM and a
+     * two-line date (weekday over day and month) sit on a frosted-glass card under it.
+     */
+    private void useClockCard() {
+        greeting.setAllCaps(false);
+        greeting.setLetterSpacing(0f);
+        greeting.setTextSize(20f);
+        greeting.setTypeface(getResources().getFont(R.font.outfit_regular));
+        greetingColor = 0xD9FFFFFF;
+        greeting.setTextColor(greetingColor);
+        greeting.setMinHeight(Math.round(42 * density));
+        greeting.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+        View buttons = findViewById(R.id.topButtons);
+        RelativeLayout.LayoutParams blp = (RelativeLayout.LayoutParams) buttons.getLayoutParams();
+        blp.removeRule(RelativeLayout.ALIGN_BOTTOM);
+        blp.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+        blp.bottomMargin = 0;
+        buttons.setLayoutParams(blp);
+
+        TextClock clock = findViewById(R.id.clock);
+        clock.setTextSize(46f);
+        clock.setFontVariationSettings("'wght' 600");
+        ((TextView) findViewById(R.id.ampm)).setTextSize(14f);
+
+        View divider = findViewById(R.id.clockDivider);
+        LinearLayout.LayoutParams dlp = (LinearLayout.LayoutParams) divider.getLayoutParams();
+        dlp.height = Math.round(40 * density);
+        dlp.gravity = Gravity.CENTER_VERTICAL;
+        dlp.bottomMargin = 0;
+        dlp.leftMargin = dlp.rightMargin = Math.round(18 * density);
+        divider.setLayoutParams(dlp);
+        divider.setBackgroundColor(0x40FFFFFF);
+
+        TextClock weekday = findViewById(R.id.date);
+        LinearLayout dateColumn = (LinearLayout) weekday.getParent();
+        LinearLayout.LayoutParams clp = (LinearLayout.LayoutParams) dateColumn.getLayoutParams();
+        clp.width = LinearLayout.LayoutParams.WRAP_CONTENT;
+        clp.weight = 0f;
+        clp.gravity = Gravity.CENTER_VERTICAL;
+        clp.bottomMargin = 0;
+        dateColumn.setLayoutParams(clp);
+        weekday.getLayoutParams().width = LinearLayout.LayoutParams.WRAP_CONTENT;
+        weekday.setEllipsize(null);
+        weekday.setFormat12Hour("EEEE");
+        weekday.setFormat24Hour("EEEE");
+        weekday.setAllCaps(false);
+        weekday.setLetterSpacing(0f);
+        weekday.setSingleLine(true);
+        weekday.setTextSize(18f);
+        weekday.setTextColor(Color.WHITE);
+        weekday.setTypeface(getResources().getFont(R.font.outfit_medium));
+        TextClock dayMonth = new TextClock(this);
+        String pattern = android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "dMMMM");
+        dayMonth.setFormat12Hour(pattern);
+        dayMonth.setFormat24Hour(pattern);
+        dayMonth.setSingleLine(true);
+        dayMonth.setTextSize(13f);
+        dayMonth.setTextColor(0xA6FFFFFF);
+        dayMonth.setTypeface(getResources().getFont(R.font.outfit_regular));
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        mlp.topMargin = Math.round(1 * density);
+        dateColumn.addView(dayMonth, dateColumn.indexOfChild(weekday) + 1, mlp);
+
+        LinearLayout card = (LinearLayout) clock.getParent();
+        LinearLayout.LayoutParams rlp = (LinearLayout.LayoutParams) card.getLayoutParams();
+        rlp.width = LinearLayout.LayoutParams.WRAP_CONTENT;
+        rlp.topMargin = Math.round(10 * density);
+        card.setLayoutParams(rlp);
+        int padH = Math.round(20 * density), padV = Math.round(10 * density);
+        card.setPadding(padH, padV, padH, padV);
+        // pill_bg's glass: white 18% fading to 8%, with its 1dp rim.
+        GradientDrawable glass = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x2EFFFFFF, 0x14FFFFFF});
+        glass.setCornerRadius(16 * density);
+        glass.setStroke(Math.round(density), 0x38FFFFFF);
+        card.setBackground(glass);
+    }
+
+    /**
+     * heavy_clock: the digits at weight 700, and AM/PM small, bold and grey on their baseline. A LinearLayout only
+     * baseline-aligns children without a vertical gravity, so AM/PM's bottom gravity is cleared.
+     */
+    private void useHeavyClock() {
+        TextClock clock = findViewById(R.id.clock);
+        clock.setTypeface(getResources().getFont(R.font.outfit_bold));
+        clock.setFontVariationSettings("'wght' 700");
+        clock.setLetterSpacing(-0.03f);
+        TextView ampm = findViewById(R.id.ampm);
+        ampm.setTypeface(getResources().getFont(R.font.outfit_bold));
+        ampm.setFontVariationSettings("'wght' 700");
+        ampm.setTextSize(TypedValue.COMPLEX_UNIT_PX, clock.getTextSize() * 0.3f);
+        ampm.setTextColor(0x99FFFFFF);
+        ampm.setLetterSpacing(0.02f);
+        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) ampm.getLayoutParams();
+        lp.gravity = -1;
+        lp.bottomMargin = 0;
+        lp.leftMargin = Math.round(4 * density);
+        ampm.setLayoutParams(lp);
+    }
+
+    /**
+     * bold_clock: the clock splits into the hour, a blinking orange colon and the minutes, all at weight 600, on the
+     * row's shared baseline. AM/PM stays where it was.
+     */
+    private void useBoldClock() {
+        TextClock hour = findViewById(R.id.clock);
+        ViewGroup clockRow = (ViewGroup) hour.getParent();
+        int at = clockRow.indexOfChild(hour);
+        TextClock minutes = new TextClock(this);
+        TextView colon = new BlinkingColonView(this);
+        hour.setFormat12Hour("h");
+        hour.setFormat24Hour("HH");
+        minutes.setFormat12Hour("mm");
+        minutes.setFormat24Hour("mm");
+        minutes.setTextColor(hour.getCurrentTextColor());
+        for (TextView t : new TextView[]{hour, colon, minutes}) {
+            if (t != hour) t.setTypeface(hour.getTypeface());
+            t.setTextSize(TypedValue.COMPLEX_UNIT_PX, hour.getTextSize());
+            t.setLetterSpacing(hour.getLetterSpacing());
+            t.setIncludeFontPadding(false);
+            t.setFontVariationSettings("'wght' 600");
+        }
+        colon.setPadding(Math.round(2 * density), 0, Math.round(2 * density), 0);
+        clockRow.addView(colon, at + 1, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        clockRow.addView(minutes, at + 2, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+    }
+
     /**
      * date_below_clock: the date column moves to its own line under the clock, in the vertical LinearLayout that holds
      * the clock's row, and the line between them goes. In Hebrew (rtl_menu_bar) the date and the clock's row sit right.
@@ -2363,6 +2558,472 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             bar.addView(button, bar.indexOfChild(getResources().getBoolean(R.bool.rtl_menu_bar) ? btnVpn : btnWifi));
             topAppButtons.add(button);
         }
+    }
+
+    /** assistant_button: a round sparkle button that opens whatever answers ACTION_ASSIST, placed like a top-bar app. */
+    private void addAssistantButton() {
+        Intent assist = new Intent(Intent.ACTION_ASSIST);
+        ResolveInfo target = getPackageManager().resolveActivity(assist, 0);
+        if (target == null) return;
+        ViewGroup bar = findViewById(R.id.topButtons);
+        TextView button = (TextView) getLayoutInflater().inflate(R.layout.top_app_button, bar, false);
+        button.setId(View.generateViewId());
+        Drawable sparkle = getDrawable(R.drawable.ic_assistant);
+        int size = Math.round(24 * density);
+        sparkle.setBounds(0, 0, size, size);
+        button.setCompoundDrawablesRelative(sparkle, null, null, null);
+        button.setCompoundDrawableTintList(null);
+        button.setContentDescription(target.loadLabel(getPackageManager()));
+        button.setOnClickListener(v -> open(new Intent(assist)));
+        bar.addView(button, bar.indexOfChild(getResources().getBoolean(R.bool.rtl_menu_bar) ? btnVpn : btnWifi));
+        topAppButtons.add(button);
+    }
+
+    /** The Sleep Timer add-on's screenless entry: the int extra "minutes" sets the timer, 0 cancels it. */
+    private static final ComponentName SLEEP_TIMER_SET =
+            new ComponentName("io.github.luyzfernando08.sleeptimer", "io.github.luyzfernando08.sleeptimer.SetActivity");
+
+    /** sleep_timer_button: a moon pill whose dropdown sets a bedtime in the Sleep Timer add-on, placed like a top-bar app. */
+    private void addSleepTimerButton() {
+        if (getPackageManager().resolveActivity(new Intent().setComponent(SLEEP_TIMER_SET), 0) == null) return;
+        ViewGroup bar = findViewById(R.id.topButtons);
+        TextView button = (TextView) getLayoutInflater().inflate(R.layout.top_app_button, bar, false);
+        button.setId(View.generateViewId());
+        button.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_sleep_timer, 0, 0, 0);
+        try {
+            button.setContentDescription(getPackageManager().getApplicationLabel(
+                    getPackageManager().getApplicationInfo(SLEEP_TIMER_SET.getPackageName(), 0)));
+        } catch (PackageManager.NameNotFoundException e) {
+            return;
+        }
+        button.setOnClickListener(this::showSleepTimerMenu);
+        bar.addView(button, bar.indexOfChild(getResources().getBoolean(R.bool.rtl_menu_bar) ? btnVpn : btnWifi));
+        topAppButtons.add(button);
+        btnBedtime = button;
+        showBedtimeOnButton();
+    }
+
+    /** lock_button: a padlock pill at the start of the top bar, before Inputs, that opens the lock screen. */
+    private void addLockButton() {
+        ViewGroup bar = findViewById(R.id.topButtons);
+        TextView button = (TextView) getLayoutInflater().inflate(R.layout.top_app_button, bar, false);
+        button.setId(View.generateViewId());
+        button.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_lock, 0, 0, 0);
+        button.setContentDescription(getString(R.string.lock_screen));
+        button.setOnClickListener(v -> {
+            LockActivity.locked = true;
+            startLockScreen();
+        });
+        bar.addView(button, 0);
+        topAppButtons.add(button);
+        btnLock = button;
+    }
+
+    /** lock_button's pill, the first in the bar; null without it. */
+    private View btnLock;
+
+    private void startLockScreen() {
+        startActivity(new Intent(this, LockActivity.class));
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+    }
+
+    /**
+     * sleep_timer_button's bedtime picker: hour, minutes in 5-minute steps and AM/PM, each changed with Up and Down,
+     * OK moving on to the next and then to "Set bedtime".
+     */
+    private void showSleepTimerMenu(View anchor) {
+        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        LinearLayout rows = panel.findViewById(R.id.rows);
+        PopupWindow popup = glassPopup(panel, (int) (210 * density));
+        boolean h24 = android.text.format.DateFormat.is24HourFormat(this);
+        int saved = bedtime();
+        int[] value = {saved >= 0 ? saved : 22 * 60 + 30};
+
+        TextView title = new TextView(this);
+        title.setText(R.string.bedtime);
+        title.setTextColor(0x99FFFFFF);
+        title.setTextSize(11f);
+        title.setAllCaps(true);
+        title.setLetterSpacing(0.14f);
+        title.setTypeface(getResources().getFont(R.font.outfit_medium));
+        int pad = Math.round(12 * density);
+        title.setPadding(pad, Math.round(6 * density), pad, 0);
+        rows.addView(title);
+
+        LinearLayout picker = new LinearLayout(this);
+        picker.setGravity(Gravity.CENTER);
+        TextView hour = addBedtimeField(picker), minute, ampm = null;
+        TextView colon = new TextView(this);
+        colon.setText(":");
+        colon.setTextColor(Color.WHITE);
+        colon.setTextSize(22f);
+        colon.setTypeface(getResources().getFont(R.font.outfit_bold));
+        picker.addView(colon);
+        minute = addBedtimeField(picker);
+        if (!h24) {
+            ampm = addBedtimeField(picker);
+            ampm.setAllCaps(true);
+        }
+        String[] amPm = java.text.DateFormatSymbols.getInstance().getAmPmStrings();
+        TextView ampmField = ampm;
+        Runnable show = () -> {
+            int h = value[0] / 60;
+            hour.setText(h24 ? String.format(Locale.getDefault(), "%02d", h) : String.valueOf(h % 12 == 0 ? 12 : h % 12));
+            minute.setText(String.format(Locale.getDefault(), "%02d", value[0] % 60));
+            if (ampmField != null) ampmField.setText(amPm[h < 12 ? 0 : 1]);
+        };
+        show.run();
+        LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        plp.topMargin = plp.bottomMargin = Math.round(5 * density);
+        rows.addView(picker, plp);
+
+        TextView hint = new TextView(this);
+        hint.setText(R.string.bedtime_hint);
+        hint.setTextColor(0x80FFFFFF);
+        hint.setTextSize(10f);
+        hint.setGravity(Gravity.CENTER);
+        rows.addView(hint, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        addSeparator(rows);
+        addSettingsMenuRow(rows, popup, R.string.bedtime_set, () -> setBedtime(value[0]));
+        View setRow = rows.getChildAt(rows.getChildCount() - 1);
+        if (saved >= 0) addSettingsMenuRow(rows, popup, R.string.bedtime_off, () -> setBedtime(-1));
+
+        TextView[] fields = ampm != null ? new TextView[]{hour, minute, ampm} : new TextView[]{hour, minute};
+        int[] steps = {60, 5, 12 * 60};
+        for (int i = 0; i < fields.length; i++) {
+            int step = steps[i];
+            View next = i + 1 < fields.length ? fields[i + 1] : setRow;
+            boolean[] pressed = {false};
+            fields[i].setOnKeyListener((v, code, event) -> {
+                boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
+                if (code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    if (down) {
+                        int delta = code == KeyEvent.KEYCODE_DPAD_UP ? step : -step;
+                        // Minutes wrap within the hour, so 55 + 5 is 00 of the same hour.
+                        value[0] = step == 5 ? value[0] / 60 * 60 + Math.floorMod(value[0] % 60 + delta, 60)
+                                : Math.floorMod(value[0] + delta, 24 * 60);
+                        show.run();
+                    }
+                    return true;
+                }
+                if (code != KeyEvent.KEYCODE_DPAD_CENTER && code != KeyEvent.KEYCODE_ENTER) return false;
+                if (down) {
+                    if (event.getRepeatCount() == 0) pressed[0] = true;
+                } else if (pressed[0]) {
+                    pressed[0] = false;
+                    next.requestFocus();
+                }
+                return true;
+            });
+        }
+        panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        popup.setWidth(Math.max((int) (210 * density), panel.getMeasuredWidth()));
+        // Hung from the moon's right edge: from its left edge the panel ran off the screen.
+        dropIn(popup, panel, anchor, getResources().getBoolean(R.bool.rtl_menu_bar) ? Gravity.START : Gravity.END);
+        hour.requestFocus();
+    }
+
+    private TextView addBedtimeField(LinearLayout picker) {
+        TextView field = new TextView(this);
+        field.setTextColor(Color.WHITE);
+        field.setTextSize(22f);
+        field.setTypeface(getResources().getFont(R.font.outfit_bold));
+        field.setGravity(Gravity.CENTER);
+        field.setMinWidth(Math.round(44 * density));
+        int padH = Math.round(7 * density), padV = Math.round(2 * density);
+        field.setPadding(padH, padV, padH, padV);
+        field.setFocusable(true);
+        android.graphics.drawable.StateListDrawable bg = new android.graphics.drawable.StateListDrawable();
+        bg.addState(new int[]{android.R.attr.state_focused}, bedtimeFieldBg(0x47FFFFFF));
+        bg.addState(new int[]{}, bedtimeFieldBg(0x12FFFFFF));
+        field.setBackground(bg);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = lp.rightMargin = Math.round(3 * density);
+        picker.addView(field, lp);
+        return field;
+    }
+
+    private GradientDrawable bedtimeFieldBg(int color) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(color);
+        d.setCornerRadius(10 * density);
+        return d;
+    }
+
+    /** The bedtime last set from the moon button, in minutes after midnight, or -1 for none. */
+    private int bedtime() {
+        return getSharedPreferences("bedtime", MODE_PRIVATE).getInt("minute", -1);
+    }
+
+    /** Sends the bedtime to the Sleep Timer add-on (-1 turns it off) and shows it on the moon button. */
+    private void setBedtime(int minute) {
+        getSharedPreferences("bedtime", MODE_PRIVATE).edit().putInt("minute", minute).apply();
+        Intent set = new Intent().setComponent(SLEEP_TIMER_SET);
+        open(minute >= 0 ? set.putExtra("bedtime", minute) : set.putExtra("minutes", 0));
+        showBedtimeOnButton();
+    }
+
+    /** The moon button with the bedtime beside the moon while one is set, a plain round icon otherwise. */
+    private void showBedtimeOnButton() {
+        if (btnBedtime == null) return;
+        int minute = bedtime();
+        ViewGroup.LayoutParams lp = btnBedtime.getLayoutParams();
+        if (minute >= 0) {
+            java.util.Calendar at = java.util.Calendar.getInstance();
+            at.set(java.util.Calendar.HOUR_OF_DAY, minute / 60);
+            at.set(java.util.Calendar.MINUTE, minute % 60);
+            btnBedtime.setText(android.text.format.DateFormat.getTimeFormat(this).format(at.getTime()));
+            btnBedtime.setCompoundDrawablePadding(Math.round(8 * density));
+            btnBedtime.setPaddingRelative(Math.round(12 * density), 0, Math.round(16 * density), 0);
+            lp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        } else {
+            btnBedtime.setText("");
+            btnBedtime.setCompoundDrawablePadding(0);
+            int pad = Math.round(10 * density);
+            btnBedtime.setPaddingRelative(pad, 0, pad, 0);
+            lp.width = Math.round(42 * density);
+        }
+        btnBedtime.setLayoutParams(lp);
+    }
+
+    /** sleep_timer_button's pill; null without it. */
+    private TextView btnBedtime;
+
+    private static final int MAC_BLUE = 0xFF0A84FF, MAC_GREY = 0x33FFFFFF;
+    private static final String WIFI_CONTROL = "com.gathin.wificontrol";
+    private static final int WIFI_TOGGLE_REQUEST = 0x5701, WIFI_JOIN_REQUEST = 0x5702;
+
+    /**
+     * wifi_dropdown, styled after the macOS Control Center Wi-Fi menu: a Wi-Fi heading with a toggle, this
+     * connection on a blue badge, the strongest nearby networks on grey ones (signal inside, a lock when
+     * protected), Bluetooth with the Bluetooth Connect add-on, and Network. Android 10 and later let no app but
+     * Settings switch Wi-Fi or join a network, so the toggle and the network rows open Wi-Fi settings.
+     */
+    private void showWifiMenu(View anchor) {
+        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        GradientDrawable glass = new GradientDrawable();
+        glass.setColor(0xEB1E1E20);
+        glass.setCornerRadius(14 * density);
+        glass.setStroke(Math.max(1, (int) density), 0x26FFFFFF);
+        panel.setBackground(glass);
+        LinearLayout rows = panel.findViewById(R.id.rows);
+        PopupWindow popup = glassPopup(panel, (int) (260 * density));
+        Intent wifiSettings = systemIntent(Settings.ACTION_WIFI_SETTINGS);
+        Runnable openSettings = () -> open(wifiSettings);
+        WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        boolean wifiOn = wm != null && wm.isWifiEnabled();
+        boolean online = false, wifi = false, ethernet = false;
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        for (Network net : cm != null ? cm.getAllNetworks() : new Network[0]) {
+            NetworkCapabilities caps = cm.getNetworkCapabilities(net);
+            if (caps == null || caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+                    || !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) continue;
+            online = true;
+            if (caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) ethernet = true;
+            if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) wifi = true;
+        }
+
+        View header = addWifiRow(rows, popup, 0, 0, getString(R.string.wifi), null, 0, openSettings);
+        TextView headerTitle = header.findViewById(R.id.title);
+        headerTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        headerTitle.setTypeface(getResources().getFont(R.font.outfit_bold));
+        header.setContentDescription(getString(R.string.wifi) + ", " + getString(wifiOn ? R.string.on : R.string.off));
+        View toggle = wifiToggle(wifiOn);
+        ((ViewGroup) header).addView(toggle);
+        boolean wifiControl = wifiControlInstalled();
+        if (wifiControl) {
+            header.setOnClickListener(v -> {
+                ((ViewGroup) toggle).getChildAt(0).animate().translationX(16 * density * (wifiOn ? -1 : 1))
+                        .setDuration(160).start();
+                ((GradientDrawable) toggle.getBackground()).setColor(wifiOn ? 0x40FFFFFF : MAC_BLUE);
+                header.postDelayed(() -> {
+                    popup.dismiss();
+                    startWifiControl("ToggleActivity", new Intent().putExtra("enabled", !wifiOn), WIFI_TOGGLE_REQUEST);
+                }, 220);
+            });
+        }
+
+        List<android.net.wifi.ScanResult> nearby = new ArrayList<>();
+        try {
+            if (wifiOn) nearby.addAll(wm.getScanResults());
+        } catch (SecurityException ignored) {
+        }
+        nearby.sort((a, b) -> Integer.compare(b.level, a.level));
+        android.net.wifi.WifiInfo info = wifi && wm != null ? wm.getConnectionInfo() : null;
+        String current = info != null ? info.getSSID() : null;
+        if (current != null) current = current.replace("\"", "").trim();
+        if (current != null && (current.isEmpty() || current.contains("unknown") || current.equals("0x"))) current = null;
+
+        if (ethernet || info != null || !nearby.isEmpty()) addSeparator(rows);
+        if (ethernet) {
+            addWifiRow(rows, popup, R.drawable.ic_line_ethernet, MAC_BLUE, getString(R.string.ethernet),
+                    connectedStatus(null), 0, openSettings);
+        }
+        Set<String> seen = new HashSet<>();
+        if (info != null) {
+            android.net.wifi.ScanResult match = null;
+            for (android.net.wifi.ScanResult r : nearby) {
+                if (r.SSID != null && r.SSID.trim().equals(current)) { match = r; break; }
+            }
+            if (current != null) seen.add(current);
+            String detail = match != null ? wifiDetail(match) : wifiBand(info.getFrequency());
+            addWifiRow(rows, popup, signalBars(WifiManager.calculateSignalLevel(info.getRssi(), 5)), MAC_BLUE,
+                    current != null ? current : getString(R.string.wifi), connectedStatus(detail),
+                    match == null || !wifiSecurity(match).isEmpty() ? R.drawable.ic_lock_closed_line : R.drawable.ic_lock_open,
+                    openSettings);
+        }
+        int shown = 0;
+        for (android.net.wifi.ScanResult r : nearby) {
+            String ssid = r.SSID == null ? "" : r.SSID.trim();
+            if (ssid.isEmpty() || !seen.add(ssid)) continue;
+            String caps = r.capabilities == null ? "" : r.capabilities;
+            Runnable join = wifiControl && !caps.contains("EAP") ? () -> startWifiControl("JoinActivity",
+                    new Intent().putExtra("ssid", ssid).putExtra("caps", caps), WIFI_JOIN_REQUEST) : openSettings;
+            addWifiRow(rows, popup, signalBars(WifiManager.calculateSignalLevel(r.level, 5)), MAC_GREY, ssid,
+                    wifiDetail(r), wifiSecurity(r).isEmpty() ? R.drawable.ic_lock_open : R.drawable.ic_lock_closed_line,
+                    join);
+            if (++shown == 4) break;
+        }
+
+        addSeparator(rows);
+        Intent bluetooth = getPackageManager().getLeanbackLaunchIntentForPackage("com.gathin.btconnect");
+        if (bluetooth == null) bluetooth = getPackageManager().getLaunchIntentForPackage("com.gathin.btconnect");
+        if (bluetooth != null) {
+            CharSequence label;
+            try {
+                label = getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo("com.gathin.btconnect", 0));
+            } catch (PackageManager.NameNotFoundException e) {
+                label = "Bluetooth";
+            }
+            boolean btOn = false;
+            try {
+                android.bluetooth.BluetoothManager bm = (android.bluetooth.BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+                btOn = bm != null && bm.getAdapter() != null && bm.getAdapter().isEnabled();
+            } catch (SecurityException ignored) {
+            }
+            Intent openBluetooth = bluetooth;
+            addWifiRow(rows, popup, R.drawable.ic_bluetooth, btOn ? MAC_BLUE : MAC_GREY, label.toString(),
+                    getString(btOn ? R.string.on : R.string.off), 0, () -> open(openBluetooth));
+        }
+        View settings = addWifiRow(rows, popup, 0, 0, getString(R.string.quick_network) + "\u2026", null, 0, openSettings);
+        settings.setMinimumHeight((int) (36 * density));
+        ((TextView) settings.findViewById(R.id.title)).setTypeface(getResources().getFont(R.font.outfit_regular));
+
+        panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        popup.setWidth(Math.max((int) (250 * density), Math.min(panel.getMeasuredWidth(), (int) (300 * density))));
+        dropIn(popup, panel, anchor, getResources().getBoolean(R.bool.rtl_menu_bar) ? Gravity.END : Gravity.START);
+        rows.getChildAt(0).requestFocus();
+    }
+
+    private boolean wifiControlInstalled() {
+        try {
+            getPackageManager().getPackageInfo(WIFI_CONTROL, 0);
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    /** Starts a Wi-Fi Control screen for a result (it acts only for this launcher), or Wi-Fi settings without it. */
+    private void startWifiControl(String activity, Intent intent, int request) {
+        try {
+            startActivityForResult(intent.setClassName(WIFI_CONTROL, WIFI_CONTROL + "." + activity), request);
+        } catch (android.content.ActivityNotFoundException e) {
+            open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
+        }
+    }
+
+    /**
+     * A wifi_dropdown row: a glyph on a round badge of {@code badge} colour (iconRes 0: text only, indented like
+     * a menu item), a title, an optional second line and an optional lock at the end.
+     */
+    private View addWifiRow(LinearLayout rows, PopupWindow popup, int iconRes, int badge, String title,
+                            CharSequence status, int endIcon, Runnable action) {
+        View row = getLayoutInflater().inflate(R.layout.item_wifi_network, rows, false);
+        ImageView icon = row.findViewById(R.id.icon);
+        if (iconRes == 0) {
+            icon.setVisibility(View.GONE);
+            ((ViewGroup.MarginLayoutParams) row.findViewById(R.id.text).getLayoutParams()).setMarginStart((int) (6 * density));
+        } else {
+            icon.setImageResource(iconRes);
+            GradientDrawable circle = new GradientDrawable();
+            circle.setShape(GradientDrawable.OVAL);
+            circle.setColor(badge);
+            icon.setBackground(circle);
+        }
+        ((TextView) row.findViewById(R.id.title)).setText(title);
+        TextView line = row.findViewById(R.id.status);
+        if (status == null) line.setVisibility(View.GONE);
+        else line.setText(status);
+        ImageView end = row.findViewById(R.id.end_icon);
+        if (endIcon == 0) end.setVisibility(View.GONE);
+        else end.setImageResource(endIcon);
+        row.setOnClickListener(v -> {
+            popup.dismiss();
+            action.run();
+        });
+        rows.addView(row);
+        return row;
+    }
+
+    /** The toggle's look only, macOS blue with the knob right while Wi-Fi is on. */
+    private View wifiToggle(boolean on) {
+        FrameLayout track = new FrameLayout(this);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(10 * density);
+        bg.setColor(on ? MAC_BLUE : 0x40FFFFFF);
+        track.setBackground(bg);
+        View knob = new View(this);
+        GradientDrawable knobBg = new GradientDrawable();
+        knobBg.setShape(GradientDrawable.OVAL);
+        knobBg.setColor(0xFFFFFFFF);
+        knob.setBackground(knobBg);
+        knob.setElevation(2 * density);
+        int k = (int) (16 * density), m = (int) (2 * density);
+        FrameLayout.LayoutParams kp = new FrameLayout.LayoutParams(k, k,
+                (on ? Gravity.END : Gravity.START) | Gravity.CENTER_VERTICAL);
+        kp.setMargins(m, m, m, m);
+        track.addView(knob, kp);
+        track.setLayoutParams(new LinearLayout.LayoutParams((int) (36 * density), (int) (20 * density)));
+        return track;
+    }
+
+    private static int signalBars(int level) {
+        return level >= 4 ? R.drawable.ic_wifi_bars_4 : level == 3 ? R.drawable.ic_wifi_bars_3
+                : level == 2 ? R.drawable.ic_wifi_bars_2 : R.drawable.ic_wifi_bars_1;
+    }
+
+    /** "Connected" in green, then {@code detail} when there is one. */
+    private CharSequence connectedStatus(String detail) {
+        String connected = getString(R.string.connected);
+        android.text.SpannableString text = new android.text.SpannableString(
+                detail == null || detail.isEmpty() ? connected : connected + " \u00b7 " + detail);
+        text.setSpan(new android.text.style.ForegroundColorSpan(0xFF30D158), 0, connected.length(), 0);
+        return text;
+    }
+
+    /** Security and band, e.g. "WPA2 · 5 GHz"; only the band for an open network. */
+    private static String wifiDetail(android.net.wifi.ScanResult r) {
+        String security = wifiSecurity(r), band = wifiBand(r.frequency);
+        return security.isEmpty() ? band : security + " \u00b7 " + band;
+    }
+
+    private static String wifiBand(int mhz) {
+        return mhz >= 5925 ? "6 GHz" : mhz >= 4900 ? "5 GHz" : mhz > 0 ? "2.4 GHz" : "";
+    }
+
+    /** WPA3, WPA2, WPA, WEP or 802.1X from a scan result, or "" for an open network. */
+    private static String wifiSecurity(android.net.wifi.ScanResult r) {
+        String c = r.capabilities == null ? "" : r.capabilities;
+        if (c.contains("EAP")) return "802.1X";
+        if (c.contains("SAE") || c.contains("WPA3")) return "WPA3";
+        if (c.contains("RSN") || c.contains("WPA2")) return "WPA2";
+        if (c.contains("WPA")) return "WPA";
+        if (c.contains("WEP")) return "WEP";
+        return "";
     }
 
     @Override public void onLibraryUp() {
@@ -2516,8 +3177,19 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             greeting.setText(festiveGreeting);
             greeting.setTextColor(liftTowardsWhite(festival.accentColor(), 0.25f));
         } else {
-            greeting.setText(greetingName.isEmpty() ? getString(res)
-                    : getString(R.string.greeting_with_name, getString(res), greetingName));
+            String text = greetingName.isEmpty() ? getString(res)
+                    : getString(R.string.greeting_with_name, getString(res), greetingName);
+            int at = text.lastIndexOf(greetingName);
+            if (clockCard && !greetingName.isEmpty() && at >= 0 && Build.VERSION.SDK_INT >= 28) {
+                SpannableString styled = new SpannableString(text);
+                styled.setSpan(new TypefaceSpan(getResources().getFont(R.font.outfit_bold)), at,
+                        at + greetingName.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                styled.setSpan(new ForegroundColorSpan(Color.WHITE), at, at + greetingName.length(),
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                greeting.setText(styled);
+            } else {
+                greeting.setText(text);
+            }
             greeting.setTextColor(greetingColor);
         }
         if (shamsi) shamsiDate.setText(Shamsi.today(getResources()));
@@ -3333,6 +4005,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, int title, Runnable action) {
+        addSettingsMenuRow(rows, popup, getString(title), action);
+    }
+
+    private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, CharSequence title, Runnable action) {
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
         row.findViewById(R.id.icon).setVisibility(View.GONE);
         row.findViewById(R.id.dot).setVisibility(View.GONE);

@@ -246,6 +246,28 @@ final class Config {
     final boolean showGreeting;
     /** The date and the line between it and the clock in the clock's full white instead of dimmed (config.xml, header_white). */
     final boolean headerWhite;
+    /** A frosted-glass analog dial in place of the digital clock and AM/PM (config.xml, analog_clock). */
+    final boolean analogClock;
+    /** The digital clock in bold with a blinking orange colon (config.xml, bold_clock). */
+    final boolean boldClock;
+    /** The digital clock at weight 700 with a small bold AM/PM on its baseline (config.xml, heavy_clock). */
+    final boolean heavyClock;
+    /** A padlock button at the start of the top bar that opens the lock screen (config.xml, lock_button). */
+    final boolean lockButton;
+    /** The screensaver is the lock screen, unlocked only by OK (config.xml, idle_lock). */
+    final boolean idleLock;
+    /** Sentence-case greeting with a bold name, the time and date on a glass card (config.xml, clock_card). */
+    final boolean clockCard;
+    /** A round button in the top bar that opens the TV's assistant, such as Gemini (config.xml, assistant_button). */
+    final boolean assistantButton;
+    /** App library cards as squares, the app's icon filling each with its name over it (library_square_cards). */
+    final boolean librarySquareCards;
+    /** A moon button in the top bar whose dropdown sets the Sleep Timer add-on (config.xml, sleep_timer_button). */
+    final boolean sleepTimerButton;
+    /** The network pill opens a glass dropdown of this and nearby networks (config.xml, wifi_dropdown). */
+    final boolean wifiDropdown;
+    /** Square icon tiles on frosted glass, in a compact centred grid (config.xml, square_tiles). */
+    final boolean squareTiles;
     /** The clock screensaver over Home's wallpaper instead of the black glow (config.xml, clock_wallpaper). */
     final boolean clockWallpaper;
     /** How dark the clock screensaver's wallpaper is, 0 to 90 % (config.xml, clock_wallpaper_dim). */
@@ -270,7 +292,18 @@ final class Config {
                    List<RaceWeekend.Race> raceCalendar, boolean cinematicHome, boolean ambientGlow, boolean appGlow, boolean fadeRows, int homeIdleClockMinutes,
                    boolean keyFilter, boolean dockGlass, String glowStyle, boolean wallpaperCaptions,
                    boolean handleViewInputs, boolean tileMenu, boolean dockEvenPadding, boolean dockBand, boolean cinematicDots, boolean cinematicWhiteFocus, boolean wifiStatusColor, int cinematicScrim, int cinematicArt,
-                   Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean powerOnHome, boolean homeLongPressHome, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset, boolean dateBelowClock, boolean vpnPill, String locale, boolean powerOnHomeAlways) {
+                   Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean powerOnHome, boolean homeLongPressHome, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset, boolean dateBelowClock, boolean vpnPill, String locale, boolean powerOnHomeAlways, boolean analogClock, boolean squareTiles, boolean boldClock, boolean clockCard, boolean assistantButton, boolean librarySquareCards, boolean sleepTimerButton, boolean heavyClock, boolean wifiDropdown, boolean lockButton, boolean idleLock) {
+        this.lockButton = lockButton;
+        this.idleLock = idleLock;
+        this.wifiDropdown = wifiDropdown;
+        this.heavyClock = heavyClock;
+        this.sleepTimerButton = sleepTimerButton;
+        this.assistantButton = assistantButton;
+        this.librarySquareCards = librarySquareCards;
+        this.clockCard = clockCard;
+        this.analogClock = analogClock;
+        this.boldClock = boldClock;
+        this.squareTiles = squareTiles;
         this.handleViewInputs = handleViewInputs;
         this.tileMenu = tileMenu;
         this.inputKeycodes = inputKeycodes;
@@ -489,6 +522,17 @@ final class Config {
         List<String> topBarApps = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.top_bar_apps)));
         boolean showGreeting = res.getBoolean(R.bool.show_greeting);
         boolean headerWhite = res.getBoolean(R.bool.header_white);
+        boolean analogClock = res.getBoolean(R.bool.analog_clock);
+        boolean boldClock = res.getBoolean(R.bool.bold_clock);
+        boolean heavyClock = res.getBoolean(R.bool.heavy_clock);
+        boolean lockButton = res.getBoolean(R.bool.lock_button);
+        boolean idleLock = res.getBoolean(R.bool.idle_lock);
+        boolean clockCard = res.getBoolean(R.bool.clock_card);
+        boolean assistantButton = res.getBoolean(R.bool.assistant_button);
+        boolean librarySquareCards = res.getBoolean(R.bool.library_square_cards);
+        boolean sleepTimerButton = res.getBoolean(R.bool.sleep_timer_button);
+        boolean wifiDropdown = res.getBoolean(R.bool.wifi_dropdown);
+        boolean squareTiles = res.getBoolean(R.bool.square_tiles);
         boolean clockWallpaper = res.getBoolean(R.bool.clock_wallpaper);
         int clockWallpaperDim = res.getInteger(R.integer.clock_wallpaper_dim);
         boolean clockGlow = res.getBoolean(R.bool.clock_glow);
@@ -593,6 +637,17 @@ final class Config {
             topBarApps = stringList(json, "top_bar_apps", topBarApps);
             showGreeting = bool(json, "show_greeting", showGreeting);
             headerWhite = bool(json, "header_white", headerWhite);
+            analogClock = bool(json, "analog_clock", analogClock);
+            boldClock = bool(json, "bold_clock", boldClock);
+            heavyClock = bool(json, "heavy_clock", heavyClock);
+            lockButton = bool(json, "lock_button", lockButton);
+            idleLock = bool(json, "idle_lock", idleLock);
+            clockCard = bool(json, "clock_card", clockCard);
+            assistantButton = bool(json, "assistant_button", assistantButton);
+            librarySquareCards = bool(json, "library_square_cards", librarySquareCards);
+            sleepTimerButton = bool(json, "sleep_timer_button", sleepTimerButton);
+            wifiDropdown = bool(json, "wifi_dropdown", wifiDropdown);
+            squareTiles = bool(json, "square_tiles", squareTiles);
             clockWallpaper = bool(json, "clock_wallpaper", clockWallpaper);
             clockWallpaperDim = integer(json, "clock_wallpaper_dim", clockWallpaperDim, 0, 90);
             clockGlow = bool(json, "clock_glow", clockGlow);
@@ -660,7 +715,7 @@ final class Config {
                 dockBand, cinematicDots, cinematicWhiteFocus, wifiStatusColor, cinematicScrim, cinematicArt, wallpaperMoods, gamepadPassthrough,
                 consumeVolumeKeys, powerOnHome, homeLongPressHome, wifiStatusWarnings, topBarApps, showGreeting, headerWhite, clockWallpaper,
                 Math.max(0, Math.min(90, clockWallpaperDim)), clockGlow, glassStyle, singleRow && dockRow, dockBandAll, lunar, lunarOffset,
-                dateBelowClock, vpnPill, locale, powerOnHomeAlways);
+                dateBelowClock, vpnPill, locale, powerOnHomeAlways, analogClock, squareTiles && !singleRow, boldClock, clockCard, assistantButton, librarySquareCards, sleepTimerButton, heavyClock, wifiDropdown, lockButton, idleLock);
     }
 
     /**

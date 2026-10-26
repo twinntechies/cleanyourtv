@@ -1,0 +1,12 @@
+# Xiaomi TV A Pro 2026 (MiTV-MZTU0, river), Google TV 14
+# Batch 3: preloaded apps the owner does not use.
+# Kept by owner: Netflix, Prime Video, Hotstar, ZEE5, aha, YouTube, casting (mediashell),
+# voice (katniss), firmware updaters, Live TV app.
+# Undo: TV_HOST=<tv ip> tools/restore.sh work/batch3-apps.txt
+# com.sonyliv                          # re-enabled: owner wants it in the dock
+com.apple.atve.androidtv.appletv
+com.google.android.youtube.tvmusic
+com.mxtech.videoplayer.television
+com.xiaomi.mimusic2
+com.google.android.videos
+com.google.android.play.games

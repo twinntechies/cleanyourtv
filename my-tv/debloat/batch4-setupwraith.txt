@@ -1,0 +1,6 @@
+# Xiaomi TV A Pro 2026 (MiTV-MZTU0, river), Google TV 14
+# Batch 4: Google TV setup wizard. Its RecoveryActivity takes Home (and crash-loops) once launcherx is
+# disabled. Wi-Fi was forgotten and re-joined first, so the saved network no longer belongs to it.
+# May stop phone casting after a reboot. Re-enable before a factory reset.
+# Undo: TV_HOST=<tv ip> tools/restore.sh work/batch4-setupwraith.txt
+com.google.android.tungsten.setupwraith

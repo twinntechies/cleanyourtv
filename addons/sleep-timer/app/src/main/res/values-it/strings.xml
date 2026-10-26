@@ -7,6 +7,8 @@
     <string name="state_off">Nessun timer impostato.</string>
     <string name="state_on">Standby alle %1$s.</string>
     <string name="no_service">Il servizio di accessibilità del timer di spegnimento è spento (lancia lo script di installazione).</string>
+    <string name="bedtime_on">Ora di dormire impostata. Standby alle %1$s, ogni giorno.</string>
+    <string name="bedtime_countdown">Ora di dormire. La TV si spegne tra</string>
     <string name="warning_title">La TV si sta spegnendo</string>
     <string name="warning_seconds">tra %1$d secondi</string>
     <string name="more">Altri 15 minuti</string>

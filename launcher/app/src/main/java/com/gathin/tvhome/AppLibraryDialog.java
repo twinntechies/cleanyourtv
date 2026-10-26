@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
@@ -15,6 +16,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
+import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -88,6 +90,10 @@ final class AppLibraryDialog {
     private int totalApps;
     final PopupWindow popup;
     private final float density;
+    /** library_square_cards: square cards, the icon filling each and the name over its bottom. */
+    private final boolean squareCards;
+    /** app_banners: with square cards, a bundled banner_* drawable takes the place of that app's icon. */
+    private final Map<String, String> appBanners;
     private List<ResolveInfo> apps = new ArrayList<>();
     private String selectedPackage;
     private int selectedPosition;
@@ -143,13 +149,15 @@ final class AppLibraryDialog {
         if (popup.isShowing()) popup.update(width, height);
     }
 
-    AppLibraryDialog(Activity activity, boolean animations, boolean reducedMotion, boolean selectionMode, boolean okOpens, Predicate<String> onHome, Runnable changed, Runnable dismissed) {
+    AppLibraryDialog(Activity activity, boolean animations, boolean reducedMotion, boolean selectionMode, boolean okOpens, boolean squareCards, Map<String, String> appBanners, Predicate<String> onHome, Runnable changed, Runnable dismissed) {
         this.activity = activity;
         this.animations = animations;
         this.rtl = activity.getResources().getBoolean(R.bool.rtl_app_grid);
         this.reducedMotion = reducedMotion;
         this.selectionMode = selectionMode;
         this.okOpens = okOpens && !selectionMode;
+        this.squareCards = squareCards;
+        this.appBanners = appBanners;
         this.onHome = onHome;
         this.changed = changed;
         this.dismissed = dismissed;
@@ -305,6 +313,30 @@ final class AppLibraryDialog {
     }
 
     /** The app's icon from this opening's cache, or loaded on LOADER and set once it arrives. */
+    /** A square card's picture: the app's bundled app_banners drawable when it has one, else its large icon. */
+    private Drawable squareArt(PackageManager pm, ResolveInfo app) {
+        String name = appBanners.get(app.activityInfo.packageName);
+        if (name != null && name.startsWith("banner_")) {
+            int id = activity.getResources().getIdentifier(name, "drawable", activity.getPackageName());
+            if (id != 0) return activity.getDrawable(id);
+        }
+        return largeIcon(pm, app);
+    }
+
+    /** The icon at xxxhdpi, so it stays sharp filling a square card; the usual icon when that cannot be had. */
+    private static Drawable largeIcon(PackageManager pm, ResolveInfo app) {
+        int id = app.getIconResource();
+        if (id != 0) {
+            try {
+                Drawable large = pm.getResourcesForApplication(app.activityInfo.applicationInfo)
+                        .getDrawableForDensity(id, DisplayMetrics.DENSITY_XXXHIGH, null);
+                if (large != null) return large;
+            } catch (PackageManager.NameNotFoundException | Resources.NotFoundException ignored) {
+            }
+        }
+        return app.loadIcon(pm);
+    }
+
     private void bindIcon(ImageView icon, ResolveInfo app) {
         String pkg = app.activityInfo.packageName;
         icon.setTag(pkg);
@@ -314,7 +346,7 @@ final class AppLibraryDialog {
         PackageManager pm = activity.getPackageManager();
         LOADER.execute(() -> {
             Drawable loaded;
-            try { loaded = app.loadIcon(pm); }
+            try { loaded = squareCards ? squareArt(pm, app) : app.loadIcon(pm); }
             catch (RuntimeException unavailable) { loaded = null; }
             Drawable result = loaded;
             main.post(() -> {
@@ -595,6 +627,7 @@ final class AppLibraryDialog {
 
     private final class Catalog extends RecyclerView.Adapter<Row> {
         @NonNull @Override public Row onCreateViewHolder(@NonNull ViewGroup parent, int type) {
+            if (squareCards) return squareRow();
             FrameLayout row = new FrameLayout(activity);
             RecyclerView.LayoutParams params = new RecyclerView.LayoutParams(dp(132), dp(170));
             params.setMargins(dp(6), dp(2), dp(6), dp(2));
@@ -648,6 +681,7 @@ final class AppLibraryDialog {
             if (home) check.setBackgroundResource(R.drawable.library_check);
             else check.setBackground(surface(0xFF70D9A0, 8));
             check.setVisibility(home || recent ? View.VISIBLE : View.GONE);
+            if (squareCards) status.setVisibility(View.GONE);
             holder.itemView.setOnClickListener(v -> {
                 boolean onHomeNow = onHome.test(pkg);
                 if (LibraryApps.okOpens(selectionMode, okOpens, onHomeNow)) open(app);
@@ -672,6 +706,42 @@ final class AppLibraryDialog {
             });
         }
         @Override public int getItemCount() { return apps.size(); }
+
+        /** library_square_cards: the icon fills the card, cut to its rounded corners, with the name on a dark fade. */
+        private Row squareRow() {
+            FrameLayout row = new FrameLayout(activity);
+            RecyclerView.LayoutParams params = new RecyclerView.LayoutParams(dp(150), dp(150));
+            params.setMargins(dp(6), dp(2), dp(6), dp(2));
+            row.setLayoutParams(params);
+            row.setFocusableInTouchMode(true);
+            row.setClickable(true);
+            row.setClipToOutline(true);
+            ImageView icon = new ImageView(activity);
+            icon.setId(R.id.icon);
+            icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            row.addView(icon, new FrameLayout.LayoutParams(-1, -1));
+            View fade = new View(activity);
+            fade.setBackground(new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP,
+                    new int[]{0xD9000000, 0x00000000}));
+            row.addView(fade, new FrameLayout.LayoutParams(-1, dp(64), Gravity.BOTTOM));
+            TextView name = text("", 14, Color.WHITE);
+            name.setId(R.id.title);
+            name.setSingleLine(true);
+            name.setGravity(Gravity.START);
+            name.setShadowLayer(dp(4), 0, dp(1), 0x99000000);
+            name.setPadding(dp(12), 0, dp(12), dp(10));
+            row.addView(name, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
+            TextView status = text("", 11, 0xBBFFFFFF);
+            status.setId(R.id.status);
+            status.setVisibility(View.GONE);
+            row.addView(status, new FrameLayout.LayoutParams(0, 0));
+            View check = new View(activity);
+            check.setId(R.id.dot);
+            FrameLayout.LayoutParams badge = new FrameLayout.LayoutParams(dp(18), dp(18), Gravity.TOP | Gravity.END);
+            badge.setMargins(0, dp(8), dp(8), 0);
+            row.addView(check, badge);
+            return new Row(row);
+        }
     }
 
     private static final class Row extends RecyclerView.ViewHolder {
