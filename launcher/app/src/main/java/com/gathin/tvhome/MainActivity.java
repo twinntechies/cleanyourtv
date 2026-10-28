@@ -118,6 +118,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * time arrives; the clock, date and greeting stay hidden before then.
      */
     private static final long TIME_VALID_AFTER_MS = 1_735_689_600_000L;
+    private static final long CLOCK_SYNC_WAIT_MS = 180_000L;
     private String liveTvPkg;
     /** Launcher settings' change count this Home was built with (see onResume). */
     private long settingsRevision;
@@ -3371,7 +3372,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private final Runnable clockCheck = this::updateClockVisibility;
 
     private void updateClockVisibility() {
-        boolean valid = System.currentTimeMillis() >= TIME_VALID_AFTER_MS;
+        long now = System.currentTimeMillis();
+        long uptime = SystemClock.elapsedRealtime();
+        // Without a clock battery, Android 12+ starts the clock at the firmware build time until network time arrives.
+        boolean fromBuildTime = uptime < CLOCK_SYNC_WAIT_MS && now - Build.TIME < uptime + 60_000L;
+        boolean valid = now >= TIME_VALID_AFTER_MS && !fromBuildTime;
         clockBlock.setVisibility(valid ? View.VISIBLE : View.INVISIBLE);
         handler.removeCallbacks(clockCheck);
         if (valid) {
